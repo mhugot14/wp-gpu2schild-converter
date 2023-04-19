@@ -17,6 +17,10 @@ class CSVHandler{
   private $schuljahr;
   private $halbjahr;
   private $schildRows;
+  private $wpdb;
+  private $tabLoeschFaecher;
+  private $tabLoeschKlassen;
+  private $tabSchildImport;
 
 
   function __construct($file_tmp, $file_name, $schuljahr, $halbjahr){
@@ -24,7 +28,12 @@ class CSVHandler{
 	$this->tmpPfad = $file_tmp;
 	$this->schuljahr = $schuljahr;
 	$this->halbjahr = $halbjahr;	
-	 
+	global $wpdb;
+	$this->wpdb = $wpdb;
+	$this->tabLoeschFaecher = $this->wpdb->prefix.'usc_loesch_faecher';
+	$this->tabLoeschKlassen = $this->wpdb->prefix.'usc_loesch_klassen';
+	$this->tabSchildImport = $this->wpdb->prefix.'usc_schildimport';
+	
   }
 
   public function csvLeague(){
@@ -197,8 +206,59 @@ class CSVHandler{
 	}
 	
 	public function faecher_loeschen(){
-		
-		echo "<p>Hier passiert noch nichts</p>";
+		$loeschFaecher = $this->wpdb->get_results('SELECT * FROM '.$this->tabLoeschFaecher.';');
+		?>
+		<details style="background: #F6E3CE; border-left:5px solid #DF7401; padding:5px;">
+			<summary style="padding:2px;">Folgende Fächer wurden aufgrund der Loeschfächer gelöscht (zum Aufklappen hier klicken)</summary>
+		<table class="wp-list-table sortable fixed striped table-view-list pages">
+			<thead>
+				<tr>
+					<th>id</th><!-- comment -->
+					<th>Schuljahr</th>
+					<th>Import für Halbjahr</th>
+					<th>Klasse</th>
+					<th>Fach</th>
+					<th>Lehrer</th>
+					<th>gilt für Halbjahr</th>
+				</tr>	
+			</thead>
+			<tbody>
+		<?php
+		$loeschCounter = 0;
+		$deleteCount=0;
+		foreach ($loeschFaecher as $loeschfach){
+			$loeschErgebnis = $this->wpdb->get_results(
+						'SELECT * '
+						. 'FROM '.$this->tabSchildImport
+						. ' WHERE fach LIKE \''.$loeschfach->fach.'\' '
+						. 'AND klasse LIKE \''.$loeschfach->klasse.'\';'
+					);
+			echo "<tr style=\"background-color:#f6f7f7;\"><td colspan=\"7\">Löschung von Fach <b>"
+			.$loeschfach->fach."</b> mit der Klasseneinschränkung <b>".$loeschfach->klasse. "</b></tr>";
+			foreach($loeschErgebnis as $loeschErgebnisRow){
+				echo "<tr>";
+				echo "<td>" .$loeschErgebnisRow->id  . "</td>";
+				echo "<td>" .$loeschErgebnisRow->schuljahr . "</td>";
+				echo "<td>" .$loeschErgebnisRow->halbjahr . "</td>";
+				echo "<td>" .$loeschErgebnisRow->klasse . "</td>";
+				echo "<td>" .$loeschErgebnisRow->fach . "</td>";
+				echo "<td>" .$loeschErgebnisRow->lehrer . "</td>";
+				echo "<td>" .$loeschErgebnisRow->giltfuerHalbjahr . "</td>";
+				echo "</tr>";
+				$loeschCounter++;
+			}
+			$deleteSQL = $this->wpdb->prepare(
+					"DELETE FROM $this->tabSchildImport WHERE fach LIKE %s AND klasse LIKE %s", 
+					$loeschfach->fach, $loeschfach->klasse);
+		//	print_r($deleteSQL);
+			$deleteCountSingle = $this->wpdb->query($deleteSQL);
+			
+			$deleteCount=$deleteCount+$deleteCountSingle;
+		}
+		echo "</tbody></table>";
+		echo "</details>";
+//		echo "Insgesamt wurden <b>".$loeschCounter."</b> Einträge gelöscht<br/>";
+		echo "Insgesamt wurden <b>".$deleteCount."</b> Einträge gelöscht<br/>";
 	}
 	
 	public function klassen_loeschen(){

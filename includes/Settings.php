@@ -216,7 +216,7 @@ public function render_gpuUploadField_settings( $object, array $args ) {
 		   In jeder Zeile steht kommagetrennt ein Fach inkl. regulärem Ausdruck
 		   in welchen Klassen das Fach gelöscht werden soll.</p><!-- comment -->
 		<p style="color:blue;font-style: italic">
-			Beispiel1:<br/> VERT, *,Bemerkung 1</br>D-WG, H11*,Bemerkung 2</br>
+			Beispiel1:<br/> VERT, %,Bemerkung 1</br>D-WG, H11%,Bemerkung 2</br>
 		</p>
 		
 			<p>Geben Sie die Daten ein, die in die Datenbank geschrieben werden sollen:</p>

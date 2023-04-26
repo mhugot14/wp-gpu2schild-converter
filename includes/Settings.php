@@ -121,7 +121,7 @@ public function render_gpuUploadField_settings( $object, array $args ) {
 		?>
 		<p>Lade hier deine GPU002.csv hoch:</p>
 				<form method="post" enctype="multipart/form-data">
-					<input type="file" name="csv_file" id="csv_file" class="file">
+					<input type="file" name="csv_file" id="csv_file" class="file"><br/><br/>
 					<label>Schuljahr: </label> 
 					<select name="schuljahr" id="schuljahr">
 						<option>2022</option>
@@ -134,7 +134,13 @@ public function render_gpuUploadField_settings( $object, array $args ) {
 						<option>1</option>
 						<option>2</option>
 					</select><br/><br/>
-					
+					<label>CSV-Trennzeichen:</label>
+					<select name="trennzeichen" id="trennzeichen">
+						<option>Semikolon (;)</option>
+						<option>Komma (,)</option>
+						<option>Tabulator (	)</option>
+					</select>
+					<br/><br/>
 					<input type="submit" name="submit" value="Datei hochladen" class="button button-primary">
 					</form><br/>
 					
@@ -148,6 +154,7 @@ public function render_gpuUploadField_settings( $object, array $args ) {
 							$file_type = $_FILES['csv_file']['type'];
 							$schuljahr = sanitize_text_field($_POST['schuljahr']);
 							$halbjahr = sanitize_text_field($_POST['halbjahr']);
+							$trennzeichen= sanitize_text_field($_POST['trennzeichen']);
 							
 			}
 		?>
@@ -190,10 +197,11 @@ public function render_gpuUploadField_settings( $object, array $args ) {
 							$file_tmp = $_FILES['csv_file']['tmp_name'];
 							$schuljahr = sanitize_text_field($_POST['schuljahr']);
 							$halbjahr = sanitize_text_field($_POST['halbjahr']);
+							$trennzeichen= sanitize_text_field($_POST['trennzeichen']);
 							
 			}
 			if (strtolower(pathinfo($file_name, PATHINFO_EXTENSION)) == 'csv'){
-				$csvHandler = new CSVHandler($file_tmp, $file_name, $schuljahr,$halbjahr);	
+				$csvHandler = new CSVHandler($file_tmp, $file_name, $schuljahr,$halbjahr,$trennzeichen);	
 				$csvHandler->csvLeague();
 				//printf($csvHandler->tabellenAusgabe());
 
@@ -212,11 +220,12 @@ public function render_gpuUploadField_settings( $object, array $args ) {
 	
 	public function render_loesch_faecher_eingabe_neu( $object, array $args ){
 	?>
-		<p>Füge in das unten stehende Textfeld die zu löschenden Fächer ein. 
+		<p>Füge in das unten stehende Textfeld die zu löschenden bzw. zu ändernden Fächer ein. 
 		   In jeder Zeile steht kommagetrennt ein Fach inkl. regulärem Ausdruck
-		   in welchen Klassen das Fach gelöscht werden soll.</p><!-- comment -->
+		   in welchen Klassen das Fach gelöscht werden soll. Sollte ein SChild-Fach gesetzt sein, wird in den 
+		entsprechenden Klassen das Schild-Fach gelöscht.</p>
 		<p style="color:blue;font-style: italic">
-			Beispiel1:<br/> VERT, %,Bemerkung 1</br>D-WG, H11%,Bemerkung 2</br>
+			Beispiel1:<br/> VERT,%, %,Bemerkung 1</br>ER, Reli, %,Gilt für alles Klassen</br>
 		</p>
 		
 			<p>Geben Sie die Daten ein, die in die Datenbank geschrieben werden sollen:</p>
@@ -242,9 +251,10 @@ if (isset($_POST['submit'])) {
 			foreach ($zeilen as $row){
 				$row = explode(",",trim($row));
 				$loeschFach = array(
-					'fach' => $row[0],
-					'klasse'=>$row[1],
-					'bemerkung' =>$row[2]
+					'fach_untis' => $row[0],
+					'fach_schild' => $row[1],
+					'klasse'=>$row[2],
+					'bemerkung' =>$row[3]
 				);
 				//Füge das oben angelegte Löschfach dem Array LoeschFaecher hinzu
 				$loeschFaecher[]=$loeschFach;

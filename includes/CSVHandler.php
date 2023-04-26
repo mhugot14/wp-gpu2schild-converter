@@ -7,6 +7,7 @@ namespace untisSchildConverter;
 //In Anlehnung an https://www.a-coding-project.de/ratgeber/php/csv-import-in-php
 require_once plugin_dir_path(__FILE__) . 'league-csv\autoload.php';
 use League\Csv\Reader;
+use League\Csv\Writer;
 use League\Csv\Exception;
 
 class CSVHandler{
@@ -16,6 +17,7 @@ class CSVHandler{
   private $tmpPfad;
   private $schuljahr;
   private $halbjahr;
+  private $trennzeichen;
   private $schildRows;
   private $wpdb;
   private $tabLoeschFaecher;
@@ -23,11 +25,12 @@ class CSVHandler{
   private $tabSchildImport;
 
 
-  function __construct($file_tmp, $file_name, $schuljahr, $halbjahr){
+  function __construct($file_tmp, $file_name, $schuljahr, $halbjahr, $trennzeichen){
 	$this->dateiName = $file_name;
 	$this->tmpPfad = $file_tmp;
 	$this->schuljahr = $schuljahr;
 	$this->halbjahr = $halbjahr;	
+	$this->trennzeichen=$trennzeichen;
 	global $wpdb;
 	$this->wpdb = $wpdb;
 	$this->tabLoeschFaecher = $this->wpdb->prefix.'usc_loesch_faecher';
@@ -40,7 +43,23 @@ class CSVHandler{
 	  global $wpdb;
 	  try {
 		$csv = Reader::createFromPath($this->tmpPfad, 'r');
-		 $csv->setDelimiter(',');
+		
+		switch($this->trennzeichen) {
+			case 'Semikolon (;)':
+				$this->trennzeichen=';';
+				break;
+			case 'Komma (,)':
+				$this->trennzeichen=',';
+				break;
+			case 'Tabulator (	)':
+				$this->trennzeichen='	';
+				break;
+			default:
+				$this->trennzeichen=';';
+		}
+		
+		$csv->setDelimiter($this->trennzeichen);
+		 
 		}		
 		catch (Exception $e) {	
 		 echo $e->getMessage(), PHP_EOL;
@@ -63,7 +82,6 @@ class CSVHandler{
 			}
 			$this->schildRows[]=$row;
 		}
-		
 	echo "Anzahl Spalten: ". count(current($this->schildRows))."<br/>";
 		//echo $this->schildRows->count();
 				// Hinzufügen der Spaltenüberschriften
@@ -86,15 +104,12 @@ class CSVHandler{
 		$this->klassen_loeschen();
 		
 		
-		echo '<h3>Fächer löschen</h3>';
+		echo '<h3>Fächer ändern oder löschen</h3>';
 		$this->faecher_loeschen();
 		
 		echo '<h3>Daten ausgeben</h3>';
 		$resultSet=$wpdb->get_results('SELECT * FROM '.$tabellenname.';');
 		$this->db_tabellen_ausgabe($resultSet);
-		
-		
-		
 	
   }
 	  
@@ -226,15 +241,17 @@ class CSVHandler{
 		<?php
 		$loeschCounter = 0;
 		$deleteCount=0;
+		$updateCount=0;
+
 		foreach ($loeschFaecher as $loeschfach){
 			$loeschErgebnis = $this->wpdb->get_results(
 						'SELECT * '
 						. 'FROM '.$this->tabSchildImport
-						. ' WHERE fach LIKE \''.$loeschfach->fach.'\' '
+						. ' WHERE fach LIKE \''.$loeschfach->fach_untis.'\' '
 						. 'AND klasse LIKE \''.$loeschfach->klasse.'\';'
 					);
-			echo "<tr style=\"background-color:#f6f7f7;\"><td colspan=\"7\">Löschung von Fach <b>"
-			.$loeschfach->fach."</b> mit der Klasseneinschränkung <b>".$loeschfach->klasse. "</b></tr>";
+			echo "<tr style=\"background-color:#f6f7f7;\"><td colspan=\"7\">Löschung /Änderung von Fach <b>"
+			.$loeschfach->fach_untis."</b> mit der Klasseneinschränkung <b>".$loeschfach->klasse. "</b></tr>";
 			foreach($loeschErgebnis as $loeschErgebnisRow){
 				echo "<tr>";
 				echo "<td>" .$loeschErgebnisRow->id  . "</td>";
@@ -247,18 +264,32 @@ class CSVHandler{
 				echo "</tr>";
 				$loeschCounter++;
 			}
-			$deleteSQL = $this->wpdb->prepare(
+			if ($loeschfach->fach_schild==""){
+				$deleteSQL = $this->wpdb->prepare(
 					"DELETE FROM $this->tabSchildImport WHERE fach LIKE %s AND klasse LIKE %s", 
-					$loeschfach->fach, $loeschfach->klasse);
-		//	print_r($deleteSQL);
-			$deleteCountSingle = $this->wpdb->query($deleteSQL);
+					$loeschfach->fach_untis, $loeschfach->klasse);
 			
+			$deleteCountSingle = $this->wpdb->query($deleteSQL);
+			echo "Löschzeilen: ".$deleteCountSingle."<br>";
 			$deleteCount=$deleteCount+$deleteCountSingle;
+			}
+			//ICH MUSS INS BETT - HIER DRAUFGUCKEN - SQL passt nicht
+			else {
+				//echo "Ich brauche ein Update<br/>";
+				$updateSQL = $this->wpdb->prepare(
+						"UPDATE  $this->tabSchildImport "
+						. "SET fach = %s WHERE fach= %s AND klasse LIKE %s;",$loeschfach->fach_schild,
+						$loeschfach->fach_untis,$loeschfach->klasse);
+			//	print_r($updateSQL);
+				$updateCountSingle = $this->wpdb->query($updateSQL);
+				echo "<br>Updates: ".$updateCountSingle."<br>";
+				$updateCount =$updateCount+$updateCountSingle;
+			}
 		}
 		echo "</tbody></table>";
 		echo "</details>";
-//		echo "Insgesamt wurden <b>".$loeschCounter."</b> Einträge gelöscht<br/>";
 		echo "Insgesamt wurden <b>".$deleteCount."</b> Einträge gelöscht<br/>";
+		echo "Insgesamt wurden <b>".$updateCount."</b> Einträge aktualisiert!";
 	}
 	
 	public function klassen_loeschen(){
@@ -281,7 +312,6 @@ class CSVHandler{
 			</thead>
 			<tbody>
 		<?php
-		$loeschCounter = 0;
 		$deleteCount=0;
 		$updateCount=0;
 		foreach ($loeschKlassen as $loeschKlasse){
@@ -302,7 +332,6 @@ class CSVHandler{
 				echo "<td>" .$loeschErgebnisRow->lehrer . "</td>";
 				echo "<td>" .$loeschErgebnisRow->giltfuerHalbjahr . "</td>";
 				echo "</tr>";
-				$loeschCounter++;
 			}
 			if ($loeschKlasse->klasse_schild==""){
 				$deleteSQL = $this->wpdb->prepare(
@@ -314,17 +343,13 @@ class CSVHandler{
 			$deleteCount=$deleteCount+$deleteCountSingle;
 			}
 			else {
-				echo "Ich brauche ein Update<br/>";
 				$updateSQL = $this->wpdb->prepare(
 						"UPDATE  $this->tabSchildImport "
 						. "SET klasse = %s WHERE klasse= %s",$loeschKlasse->klasse_schild,
 						$loeschKlasse->klasse_untis);
 				$updateCountSingle = $this->wpdb->query($updateSQL);
 				$updateCount =$updateCount+$updateCountSingle;
-			}
-			
-			 
-			 
+			} 
 		}
 		echo "</tbody></table>";
 		echo "</details>";
@@ -336,7 +361,10 @@ class CSVHandler{
 	public function db_tabellen_ausgabe($resultSet){
 		echo '<p>Anzahl Datensätze in der Datenbanktabelle <b>'.count($resultSet).'</b>.</p>';
 		if (count($resultSet)){
-		 ?>
+			$this->csv_erzeugen( $resultSet );
+			?>
+			<a href='schildimport.csv'>CSV-Datei herunterladen</a> <br/>
+		<h3>Alle Schild-Import-Daten auf einen Blick</h3>	
 		<table class="wp-list-table sortable fixed striped table-view-list pages">
 			<thead>
 				<tr>
@@ -369,6 +397,28 @@ class CSVHandler{
 			echo "Es sind keine Datensätze vorhanden.";
 		}
 			
+	}
+	
+	public function csv_erzeugen($resultset){
+		$columns=array('schuljahr','halbjahr','klasse', 'fach','lehrer');	
+		$csv = Writer::createFromString('');
+		$filename="schildimport.csv";
+		$data = array_intersect_key($resultset, array_flip($columns)); // Nur die gewünschten Spalten aus dem Resultset extrahieren
+		 $csv->insertOne($columns); // Spaltenüberschriften hinzufügen
+		$i=0;
+    foreach ($resultset as $row) {
+
+			$rowArray=array($row->schuljahr,$row->halbjahr,$row->klasse,$row->fach,$row->lehrer);
+		$csv->insertOne($rowArray); // Datenzeile hinzufügen
+		$i++;
+    }
+	echo "Die nachstehende Datei hat ".$i." Datensätze:";
+	
+		// CSV in eine Datei schreiben
+    $file = fopen($filename, 'w');
+    fwrite($file, $csv->getContent());
+    fclose($file);
+	
 	}
 
 }

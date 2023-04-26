@@ -38,7 +38,8 @@ class LoeschFaecherHandler{
 				$this->tabellenname,
 					
 					array(
-						'fach' => $row['fach'],
+						'fach_untis' => $row['fach_untis'],
+						'fach_schild' => $row['fach_schild'],
 						'klasse' => $row['klasse'],
 						'bemerkung' => $row['bemerkung'],
 						'importdatum' => $date
@@ -63,7 +64,8 @@ class LoeschFaecherHandler{
 			<thead>
 				<tr>
 					<th>id</th><!-- comment -->
-					<th>Fach</th>
+					<th>Fach Untis</th>
+					<th>Fach Schild</th>
 					<th>Klasse</th>
 					<th>Bemerkung</th>
 					<th>Importdatum</th>
@@ -75,7 +77,8 @@ class LoeschFaecherHandler{
 			foreach ( $resultSet as $row ) {
 				echo "<tr>";
 				echo "<td>" .$row->id  . "</td>";
-				echo "<td>" .$row->fach . "</td>";
+				echo "<td>" .$row->fach_untis . "</td>";
+				echo "<td>" .$row->fach_schild . "</td>";
 				echo "<td>" .$row->klasse . "</td>";
 				echo "<td>" .$row->bemerkung . "</td>";
 				echo "<td>" .$row->importdatum . "</td>";
@@ -85,7 +88,7 @@ class LoeschFaecherHandler{
 			
 			echo "<h3>Und jetzt zum schnellen kopieren bei Neuanlage</h3> <p>";
 				foreach ( $resultSet as $row ) {
-					echo $row->fach.",".$row->klasse.",".$row->bemerkung."<br/>";
+					echo $row->fach_untis.",".$row->fach_schild.",".$row->klasse.",".$row->bemerkung."<br/>";
 				}
 			echo "</p>";
 

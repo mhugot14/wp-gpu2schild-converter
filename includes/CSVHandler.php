@@ -403,7 +403,6 @@ class CSVHandler{
 		$columns=array('schuljahr','halbjahr','klasse', 'fach','lehrer');	
 		$csv = Writer::createFromString('');
 		$filename="schildimport.csv";
-		$data = array_intersect_key($resultset, array_flip($columns)); // Nur die gewünschten Spalten aus dem Resultset extrahieren
 		 $csv->insertOne($columns); // Spaltenüberschriften hinzufügen
 		$i=0;
     foreach ($resultset as $row) {

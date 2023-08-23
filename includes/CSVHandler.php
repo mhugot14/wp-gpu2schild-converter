@@ -65,7 +65,7 @@ class CSVHandler{
 		 echo $e->getMessage(), PHP_EOL;
 		}
 		//let's convert the incoming data from iso-88959-15 to utf-8
-		$csv->addStreamFilter('convert.iconv.ISO-8859-15/UTF-8');
+		//$csv->addStreamFilter('convert.iconv.ISO-8859-15/UTF-8');
 		
 		$data = $csv->getRecords(); // CSV-Daten als Iterator abrufen
 		

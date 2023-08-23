@@ -119,15 +119,15 @@ class Settings{
 public function render_gpuUploadField_settings( $object, array $args ) {
 	
 		?>
-		<p>Lade hier deine GPU002.csv hoch:</p>
+<p>Lade hier deine GPU002.<b>csv</b> hoch:</p>
 				<form method="post" enctype="multipart/form-data">
 					<input type="file" name="csv_file" id="csv_file" class="file"><br/><br/>
 					<label>Schuljahr: </label> 
 					<select name="schuljahr" id="schuljahr">
-						<option>2022</option>
 						<option>2023</option>
 						<option>2024</option>
 						<option>2025</option>
+						<option>2026</option>
 					</select>
 					<label>Halbjahr: </label> 
 					<select name="halbjahr" id="halbjahr">
@@ -136,8 +136,8 @@ public function render_gpuUploadField_settings( $object, array $args ) {
 					</select><br/><br/>
 					<label>CSV-Trennzeichen:</label>
 					<select name="trennzeichen" id="trennzeichen">
-						<option>Semikolon (;)</option>
 						<option>Komma (,)</option>
+						<option>Semikolon (;)</option>
 						<option>Tabulator (	)</option>
 					</select>
 					<br/><br/>

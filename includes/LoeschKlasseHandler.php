@@ -20,16 +20,17 @@ class LoeschKlasseHandler{
 	}
 	 
 	
-	public function loeschKlasseToDb($loeschKlasse){
+	public function loeschKlasseToDb($loeschKlasse, $operation){
 		
 		$timestamp = time();
 		$date = date("Y-m-d H:i:s", $timestamp);
 
-		
-		try{
-			$this->wpdb->query("TRUNCATE TABLE ".$this->tabellenname.';');
-		} catch (Exception $ex) {
-			echo "Die Tabelle konnte nicht geleert werden: ".$ex;
+		if ($operation == "new"){
+			try{
+				$this->wpdb->query("TRUNCATE TABLE ".$this->tabellenname.';');
+			} catch (Exception $ex) {
+				echo "Die Tabelle konnte nicht geleert werden: ".$ex;
+			}
 		}
 		try{
 			foreach($loeschKlasse as $row){
@@ -59,7 +60,7 @@ class LoeschKlasseHandler{
 			echo '<p>Anzahl Datensätze in der Datenbanktabelle: <b>'.count($resultSet).'</b>.</p>';
 		if (count($resultSet)){
 		 ?>
-		<table class="wp-list-table sortable fixed striped table-view-list pages">
+		<table class="wp-list-table sortable fixed striped">
 			<thead>
 				<tr>
 					<th>id</th><!-- comment -->

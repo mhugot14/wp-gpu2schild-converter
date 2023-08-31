@@ -48,7 +48,8 @@ class Settings{
 					'install_plugins',
 					'mh_u2s_faecher',
 					[ $this, 'render_faecher' ]
-	);
+		);
+		
 		add_action(
 			'load-' . $hook_suffix,
 			[ $this, 'register_metaboxes' ]
@@ -82,7 +83,7 @@ class Settings{
 		//Metabox für die Unterseite Fächer
 		add_meta_box(
 				'mh_u2s_loeschFaecherEingabe',
-				'Zu löschende Fächer hier eingeben',
+				'Eingabe der Fächer, die du ändern möchtest',
 				[$this,'render_loesch_faecher_eingabe_neu'],
 				'mh_u2s_faecher',
 				'normal'
@@ -124,10 +125,14 @@ public function render_gpuUploadField_settings( $object, array $args ) {
 					<input type="file" name="csv_file" id="csv_file" class="file"><br/><br/>
 					<label>Schuljahr: </label> 
 					<select name="schuljahr" id="schuljahr">
-						<option>2022</option>
-						<option>2023</option>
-						<option>2024</option>
-						<option>2025</option>
+					<?php
+					//Wähle das aktuelle Jahr - die Liste enthält das Vorjahr und drei Jahre weiter!
+					$currentYear = date("Y");
+					 for ($i = $currentYear - 1; $i <= $currentYear + 3; $i++) {
+						$selected = ($i === (int)$currentYear) ? "selected" : "";
+						 echo "<option value=\"$i\" $selected>$i</option>";
+					}
+					?>
 					</select>
 					<label>Halbjahr: </label> 
 					<select name="halbjahr" id="halbjahr">
@@ -136,8 +141,8 @@ public function render_gpuUploadField_settings( $object, array $args ) {
 					</select><br/><br/>
 					<label>CSV-Trennzeichen:</label>
 					<select name="trennzeichen" id="trennzeichen">
-						<option>Semikolon (;)</option>
 						<option>Komma (,)</option>
+						<option>Semikolon (;)</option>
 						<option>Tabulator (	)</option>
 					</select>
 					<br/><br/>
@@ -200,7 +205,7 @@ public function render_gpuUploadField_settings( $object, array $args ) {
 							$trennzeichen= sanitize_text_field($_POST['trennzeichen']);
 							
 			}
-			if (strtolower(pathinfo($file_name, PATHINFO_EXTENSION)) == 'csv'){
+			if (strtolower(pathinfo($file_name, PATHINFO_EXTENSION)) == 'csv' || strtolower(pathinfo($file_name, PATHINFO_EXTENSION)) == 'txt' ){
 				$csvHandler = new CSVHandler($file_tmp, $file_name, $schuljahr,$halbjahr,$trennzeichen);	
 				$csvHandler->csvLeague();
 				//printf($csvHandler->tabellenAusgabe());
@@ -208,12 +213,12 @@ public function render_gpuUploadField_settings( $object, array $args ) {
 		}
 			else{
 				printf('<p style="font-size:1.4em; color:red;">'
-						. 'Bitte lade eine CSV-Datei hoch.</p>');
+						. 'Bitte lade eine CSV-Datei oder eine TXT-DAtei hoch.</p>');
 			}	
 		
 		}
 		else{
-			printf('Keine Datei da Digga');
+			printf('Keine Datei da mein Freund');
 		}
 	}
 	
@@ -225,13 +230,27 @@ public function render_gpuUploadField_settings( $object, array $args ) {
 		   in welchen Klassen das Fach gelöscht werden soll. Sollte ein SChild-Fach gesetzt sein, wird in den 
 		entsprechenden Klassen das Schild-Fach gelöscht.</p>
 		<p style="color:blue;font-style: italic">
-			Beispiel1:<br/> VERT,%, %,Bemerkung 1</br>ER, Reli, %,Gilt für alles Klassen</br>
+			Beispiel 1:<br/> VERT,%, %,Bemerkung 1</br>ER, Reli, %,Gilt für alles Klassen</br>
+		</p>
+		<p>Möchtest du ein oder mehrere UNTIS-Fächer löschen und ein oder mehrere Schildfächer anlegen, 
+			kannst du die Fächer einfach mit einem Strich (<b>|</b>) trennen.
+		</p>
+		<p style="color:blue;font-style: italic">
+			Beispiel 2: Euer Unterricht bei den Automobilern findet im Lernfeld-Unterricht statt. 
+			Daher führt UNTIS die Fächer LF1 und LF2. <br/>Diese beiden Fächer sollen jetzt aber
+			die Fächer WSP, KUP und KPA werden in Schild. Das erfasst du dann wie folgt: 
+			<br/><br/> LFU1|LFU2,WSP|KUP|KPA,AK%,Lernfelder
 		</p>
 		
 			<p>Geben Sie die Daten ein, die in die Datenbank geschrieben werden sollen:</p>
 			 <form method="post" enctype="multipart/form-data">
-			  <textarea name="daten" rows="10" cols="50" class="code"></textarea>
+			  <textarea name="daten" rows="15" cols="100" class="code"></textarea>
 			  <br><br>
+			
+			    <label><input type="radio" name="auswahl" value="hinzufuegen" checked> Hinzufügen</label>
+				
+				<label><input type="radio" name="auswahl" value="neu">neu <i>(bisherige Einträge werden gelöscht)</i></label>
+				<br><br>
 			<input type="submit" name="submit" value="Speichern" class="button button-primary">
 		 </form>
 		
@@ -259,12 +278,21 @@ if (isset($_POST['submit'])) {
 				//Füge das oben angelegte Löschfach dem Array LoeschFaecher hinzu
 				$loeschFaecher[]=$loeschFach;
 				}
-	
+//radio Button auswerten
+	$operation ="";
+	if (isset($_POST["auswahl"])) {
+        $auswahl = $_POST["auswahl"];
+        if ($auswahl == "hinzufuegen") {
+            $operation="add";
+        } elseif ($auswahl == "neu") {
+            $operation="new";
+        }
+	}
 	
 	//LoeschFaecherHandler erzeugen mit Datetime
 	
 	$myLoeschFaecherHandler=new LoeschFaecherHandler();
-	$myLoeschFaecherHandler->loeschFaecherToDb($loeschFaecher);
+	$myLoeschFaecherHandler->loeschFaecherToDb($loeschFaecher, $operation);
 	}
 	}
 	
@@ -294,6 +322,9 @@ if (isset($_POST['submit'])) {
 			 <form method="post" enctype="multipart/form-data">
 			  <textarea name="daten" rows="10" cols="50" class="code"></textarea>
 			  <br><br>
+			  <label><input type="radio" name="auswahl" value="hinzufuegen" checked> Hinzufügen</label>
+			  <label><input type="radio" name="auswahl" value="neu">neu <i>(bisherige Einträge werden gelöscht)</i></label>
+			  <br><br>
 			<input type="submit" name="submit" value="Speichern" class="button button-primary">
 		 </form>
 		
@@ -320,12 +351,21 @@ if (isset($_POST['submit'])) {
 						//Füge das oben angelegte Löschfach dem Array LoeschFaecher hinzu
 						$loeschKlassen[]=$loeschKlasse;
 						}
-
+		//radio Button auswerten
+			$operation ="";
+			if (isset($_POST["auswahl"])) {
+				$auswahl = $_POST["auswahl"];
+				if ($auswahl == "hinzufuegen") {
+					$operation="add";
+				} elseif ($auswahl == "neu") {
+					$operation="new";
+				}
+	}
 
 			//LoeschFaecherHandler erzeugen mit Datetime
 
 			$myLoeschKlasseHandler=new LoeschKlasseHandler();
-			$myLoeschKlasseHandler->loeschKlasseToDb($loeschKlassen);
+			$myLoeschKlasseHandler->loeschKlasseToDb($loeschKlassen, $operation);
 			}
 			}
 	
@@ -385,6 +425,7 @@ if (isset($_POST['submit'])) {
 			wp_nonce_field( 'meta-box-order', 'meta-box-order-nonce', false );
 			
 		?>
+		
 		<div id="poststuff" class="metabox-holder">
 			
 			<div id="post-body" class="">
@@ -435,6 +476,7 @@ if (isset($_POST['submit'])) {
 	</div>
 		<?php
 	}
+	
 	
 }
 	

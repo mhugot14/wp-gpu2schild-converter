@@ -24,7 +24,7 @@ namespace untisSchildConverter;
 define('MH_uSC_FILE',__FILE__);
 //Includes
 require_once __DIR__ . '/includes/Plugin_Helpers.php';
-require_once __DIR__ . '/includes/settings.php';
+require_once __DIR__ . '/includes/Settings.php';
 
 //Die Funktion wird aufgerufen bei der Aktivierung des Plugins im Backend
 register_activation_hook(

@@ -5,7 +5,7 @@ namespace untisSchildConverter;
  * Click nbfs://nbhost/SystemFileSystem/Templates/Scripting/EmptyPHP.php to edit this template
  */
 //In Anlehnung an https://www.a-coding-project.de/ratgeber/php/csv-import-in-php
-require_once plugin_dir_path(__FILE__) . 'league-csv\autoload.php';
+require_once plugin_dir_path(__FILE__) . 'league-csv/autoload.php';
 use League\Csv\Reader;
 use League\Csv\Writer;
 use League\Csv\Exception;
@@ -23,7 +23,8 @@ class CSVHandler{
   private $tabLoeschFaecher;
   private $tabLoeschKlassen;
   private $tabSchildImport;
-
+  private $pluginhelp;
+  
 
   function __construct($file_tmp, $file_name, $schuljahr, $halbjahr, $trennzeichen){
 	$this->dateiName = $file_name;
@@ -36,6 +37,7 @@ class CSVHandler{
 	$this->tabLoeschFaecher = $this->wpdb->prefix.'usc_loesch_faecher';
 	$this->tabLoeschKlassen = $this->wpdb->prefix.'usc_loesch_klassen';
 	$this->tabSchildImport = $this->wpdb->prefix.'usc_schildimport';
+	$this->pluginhelp = new Plugin_Helpers();
 	
   }
 
@@ -221,10 +223,13 @@ class CSVHandler{
 	}
 	
 	public function faecher_loeschen(){
+		//Alle Einträge aus der Tabelle Löschfächer holen
 		$loeschFaecher = $this->wpdb->get_results('SELECT * FROM '.$this->tabLoeschFaecher.';');
 		?>
 		<details style="background: #F6E3CE; border-left:5px solid #DF7401; padding:5px; width:50%;">
-			<summary style="padding:2px;">Folgende Enträge wurden aufgrund der Loeschfächer gelöscht (zum Aufklappen hier klicken)</summary>
+			<summary style="padding:2px;">Folgende Enträge wurden aufgrund der Fächertabelle
+				gelöscht, geändert oder neu hinzugefügt(zum Aufklappen hier klicken)</summary>
+		
 		<table class="wp-list-table sortable fixed striped table-view-list pages">
 			<thead>
 				<tr>
@@ -242,54 +247,167 @@ class CSVHandler{
 		$loeschCounter = 0;
 		$deleteCount=0;
 		$updateCount=0;
-
+		$insertCount=0;
+		
 		foreach ($loeschFaecher as $loeschfach){
-			$loeschErgebnis = $this->wpdb->get_results(
-						'SELECT * '
-						. 'FROM '.$this->tabSchildImport
-						. ' WHERE fach LIKE \''.$loeschfach->fach_untis.'\' '
-						. 'AND klasse LIKE \''.$loeschfach->klasse.'\';'
-					);
-			echo "<tr style=\"background-color:#f6f7f7;\"><td colspan=\"7\">Löschung /Änderung von Fach <b>"
-			.$loeschfach->fach_untis."</b> mit der Klasseneinschränkung <b>".$loeschfach->klasse. "</b></tr>";
-			foreach($loeschErgebnis as $loeschErgebnisRow){
-				echo "<tr>";
-				echo "<td>" .$loeschErgebnisRow->id  . "</td>";
-				echo "<td>" .$loeschErgebnisRow->schuljahr . "</td>";
-				echo "<td>" .$loeschErgebnisRow->halbjahr . "</td>";
-				echo "<td>" .$loeschErgebnisRow->klasse . "</td>";
-				echo "<td>" .$loeschErgebnisRow->fach . "</td>";
-				echo "<td>" .$loeschErgebnisRow->lehrer . "</td>";
-				echo "<td>" .$loeschErgebnisRow->giltfuerHalbjahr . "</td>";
-				echo "</tr>";
-				$loeschCounter++;
-			}
-			if ($loeschfach->fach_schild==""){
-				$deleteSQL = $this->wpdb->prepare(
-					"DELETE FROM $this->tabSchildImport WHERE fach LIKE %s AND klasse LIKE %s", 
-					$loeschfach->fach_untis, $loeschfach->klasse);
+			//hier wird eine einzelne Zeile der Tabelle mit den Fächern bearbeitet.
+			$fachUntis = $loeschfach->fach_untis;
+			$fachSchild = $loeschfach->fach_schild;
+			$klasse = $loeschfach->klasse;
 			
-			$deleteCountSingle = $this->wpdb->query($deleteSQL);
-			echo "Löschzeilen: ".$deleteCountSingle."<br>";
-			$deleteCount=$deleteCount+$deleteCountSingle;
+			//die Arrays werden zurückgesetzt
+			unset($faecherSchild);
+			unset($faecherUntis);
+			
+			//die Werte in den Zeilen Fach Untis und Fach Schild werden in Arrays geschrieben.
+			$faecherUntis= $this->pluginhelp->strichSeparator($fachUntis);
+			$faecherSchild=$this->pluginhelp->strichSeparator($fachSchild);
+			 			  
+											/* Ausgabe-Check, ob die Algorithus oben funktioniert
+											 * 
+											 */
+//
+//											echo "<ul>"; // Beginne eine ungeordnete Liste in HTML
+//												foreach ($faecherSchild as $value) {
+//													echo "<li>FachSchild: $value</li>"; // Füge jedes Array-Element in ein Listenelement (li) ein
+//												}
+//											echo "</ul>"; // Beende die ungeordnete Liste  
+//
+//											echo "<ul>"; // Beginne eine ungeordnete Liste in HTML
+//												foreach ($faecherUntis as $value) {
+//													echo "<li>FachUntis: $value</li>"; // Füge jedes Array-Element in ein Listenelement (li) ein
+//												}
+//											echo "</ul>"; // Beende die ungeordnete Liste  
+			
+			
+		//Wenn das fach_schild leer ist in der Loeschtabelle, kann das Untis-Fach aus der CSV gelöscht werden. 
+		if ($faecherSchild[0]==""){
+				foreach($faecherUntis as $fachUntis){
+				
+					$loeschErgebnisSQL = $this->wpdb->prepare("SELECT * FROM "
+						. "$this->tabSchildImport WHERE fach LIKE %s AND klasse LIKE %s", 
+							$fachUntis, $klasse);
+					$loeschErgebnis= $this->wpdb->get_results($loeschErgebnisSQL);
+					echo "<tr style=\"background-color:#f6f7f7;\"><td colspan=\"8\"><b>Löschung von Fach: "
+							.$fachUntis." in Klasse: ".$klasse."</b></td></tr>";
+					$this->pluginhelp->resultsetToTable( $loeschErgebnis);
+					
+						$deleteSQL = $this->wpdb->prepare(
+							"DELETE FROM $this->tabSchildImport WHERE fach LIKE %s AND klasse LIKE %s", 
+							$fachUntis, $klasse);
+						//print_r($deleteSQL);
+						$deleteCountSingle = $this->wpdb->query($deleteSQL);
+						//echo "Löschzeilen: ".$deleteCountSingle."<br>";
+						$deleteCount=$deleteCount+$deleteCountSingle;
+					}
 			}
-			//ICH MUSS INS BETT - HIER DRAUFGUCKEN - SQL passt nicht
+			
 			else {
-				//echo "Ich brauche ein Update<br/>";
-				$updateSQL = $this->wpdb->prepare(
-						"UPDATE  $this->tabSchildImport "
-						. "SET fach = %s WHERE fach= %s AND klasse LIKE %s;",$loeschfach->fach_schild,
-						$loeschfach->fach_untis,$loeschfach->klasse);
-			//	print_r($updateSQL);
-				$updateCountSingle = $this->wpdb->query($updateSQL);
-				echo "<br>Updates: ".$updateCountSingle."<br>";
-				$updateCount =$updateCount+$updateCountSingle;
+					/*Hier müssen verschiedene Fälle abgefangen werdne => Umbennennung, Neufachanlage mit und ohne Lösung)
+					 * 
+					 */
+					 //Umbenennung => die zweiten Felder der Arrays gibt es nicht
+					 if (isset($faecherUntis[1])==false && isset($faecherSchild[1])==false)
+					 {
+						$updateErgebnisSQL = $this->wpdb->prepare("SELECT * FROM "
+						. "$this->tabSchildImport WHERE fach LIKE %s AND klasse LIKE %s", 
+							$fachUntis, $klasse);
+						$updateErgebnis= $this->wpdb->get_results($updateErgebnisSQL);
+					echo "<tr style=\"background-color:#f6f7f7;\"><td colspan=\"8\"><b>Umbennung von UntisFach: "
+							.$fachUntis." in SchildFach ".$fachSchild ." in Klasse: ".$klasse."</b></td></tr>";
+						$this->pluginhelp->resultsetToTable( $updateErgebnis);
+						
+						$updateSQL = $this->wpdb->prepare(
+								"UPDATE  $this->tabSchildImport "
+					 . "SET fach = %s WHERE fach= %s AND klasse LIKE %s;",$faecherSchild[0],
+								$faecherUntis[0],$klasse);
+						//print_r($updateSQL);
+						$updateCountSingle = $this->wpdb->query($updateSQL);
+						//echo "<br>Update <b>Umbenennung</b>: ".$updateCountSingle."<br>";
+						$updateCount =$updateCount+$updateCountSingle;
+					 }
+					 
+					 //Änderung der Fächer / Neuananlage
+					 
+					 else{
+						 //ein oder mehrere Fach bei faecherUntis und mehrere bei $faecherSchild
+						 $platzhalter = implode(',', array_fill(0,count($faecherUntis),'%s'));
+						 $abfrage = $this->wpdb->prepare(
+								 "SELECT * FROM ".$this->tabSchildImport
+								 ." WHERE fach IN ($platzhalter)"
+								 ." AND klasse LIKE %s order by klasse;",
+								 array_merge($faecherUntis,array($klasse)));
+						// print_r($abfrage);
+						//Das Resultset beinhaltet alle Einträge der DB mit den beiden UNTIS-Fächern.
+						//Alle genannten Untis-Fächer einer Klasse sollen ersetzt werden durch
+						//die Schild-Fächer.
+						 $schildImportPart = $this->wpdb->get_results($abfrage);
+						// echo "<p>schildimportPart Anzahl: ".count($schildImportPart)."</p>";
+						 
+						 $rowKlasse="";
+						 foreach ($schildImportPart as $row){
+							// echo "<p><b>rowKlasse: ".$rowKlasse." | row->klasse: ".$row->klasse."</b></p>";
+							 if($rowKlasse == $row->klasse){
+								 echo "<tr style=\"background-color:#f6f7f7;\"><td colspan=\"8\"><b>Löschung von UntisFach: "
+							.$fachUntis." in Klasse: ".$klasse."</b></td></tr>";
+								 $deleteErgebnis = $this->wpdb->get_results("SELECT * FROM $this->tabSchildImport WHERE id=$row->id;");
+								 $this->pluginhelp->resultsetToTable( $deleteErgebnis);
+								 $result=$this->wpdb->delete($this->tabSchildImport,array('id'=>$row->id));
+								 if($result === false){echo "Fehler beim Löschen der Datenbankzeile mit der ID ".$row['id'];}
+								else{
+									//echo "<p>Zeile mit ID ". $row->id . " | " .$row->klasse."| " .$row->fach. " gelöscht. </p>";  
+									$deleteCount++;
+								}
+																			
+								}
+							else{
+							 $rowKlasse = $row->klasse;
+								foreach($faecherSchild as $fachSchild){
+									$neueZeile = array(
+										'schuljahr' => $row->schuljahr,
+										'halbjahr' => $row->halbjahr,
+										'klasse' => $rowKlasse,
+										'fach' => $fachSchild,
+										'lehrer' => $row->lehrer,
+										'giltfuerHalbjahr' => $row->giltfuerHalbjahr
+										);
+									
+									$result = $this->wpdb->insert($this->tabSchildImport,$neueZeile);
+									
+									if($result === false){
+										echo "Fehler beim Einfügen der Datenbankzeile!";}
+									else{
+										echo "<tr style=\"background-color:#f6f7f7;\"><td colspan=\"8\"><b>Hinzufügen von Schildfach "
+										.$fachSchild." für UntisFach: ".$fachUntis." in Klasse: ".$klasse."</b></td></tr>";
+										echo "<tr><td></td><td>". $neueZeile['schuljahr'] . "</td><td> " .$neueZeile['halbjahr']."</td><td> " .$neueZeile['klasse']. "</td><td>".$neueZeile['fach']."</td><td>".$neueZeile['lehrer']."</td><td>".$neueZeile['giltfuerHalbjahr']."</td></tr>"; 
+									//	$deleteErgebnis = $this->wpdb->get_results("SELECT * FROM $this->tabSchildImport WHERE id=$row->id;");
+
+										}
+										$insertCount++;
+								 }
+								  echo "<tr style=\"background-color:#f6f7f7;\"><td colspan=\"8\"><b>Löschung von UntisFach: "
+							.$fachUntis." in Klasse: ".$klasse."</b></td></tr>";
+								 $deleteErgebnis = $this->wpdb->get_results("SELECT * FROM $this->tabSchildImport WHERE id=$row->id;");
+								 $this->pluginhelp->resultsetToTable( $deleteErgebnis);
+								 $result=$this->wpdb->delete($this->tabSchildImport,array('id'=>$row->id));
+									if($result === false){
+										echo "Fehler beim Löschen der Datenbankzeile mit der ID ".$row->id;}
+									else{
+										$deleteCount++;
+										//echo "Zeile mit ID ". $row->id . " | " .$row->klasse." | " .$row->fach. " gelöscht"; 
+										}
+						 }}
+
+					 }
+					 
 			}
 		}
 		echo "</tbody></table>";
 		echo "</details>";
-		echo "Insgesamt wurden <b>".$deleteCount."</b> Einträge gelöscht<br/>";
-		echo "Insgesamt wurden <b>".$updateCount."</b> Einträge aktualisiert!";
+		echo "Insgesamt wurden <b>".$deleteCount."</b> Einträge gelöscht!<br/>";
+		echo "Insgesamt wurden <b>".$updateCount."</b> Einträge aktualisiert!<br/>";
+		echo "Insgesamt wurden <b>".$insertCount."</b> Einträge angelegt!";
+		
 	}
 	
 	public function klassen_loeschen(){
@@ -321,7 +439,7 @@ class CSVHandler{
 						. ' WHERE klasse LIKE \''.$loeschKlasse->klasse_untis.'\';');
 			
 			echo "<tr style=\"background-color:#f6f7f7;\"><td colspan=\"7\">Löschung/Änderung von Klasse <b>"
-			.$loeschKlasse->klasse_untis."</b> mit der Schild_Klasse <b>".$loeschKlasse->klasse_schild. "</b></tr>";
+			.$loeschKlasse->klasse_untis."</b> mit der Schild_Klasse <b>".$loeschKlasse->klasse_schild. "</b></td></tr>";
 			foreach($loeschErgebnis as $loeschErgebnisRow){
 				echo "<tr>";
 				echo "<td>" .$loeschErgebnisRow->id  . "</td>";

@@ -19,18 +19,20 @@ class LoeschFaecherHandler{
 		$this->tabellenname = $this->wpdb->prefix.'usc_loesch_faecher';
 	}
 	 
-	
-	public function loeschFaecherToDb($loeschFaecher){
-		
-		
+	/**Die Funktion schreibt die Liste der Löschfächer aus dem Textfeld in die 
+	 * Datenbank. Dafür wird die Tabelle erst gelöscht.
+	 * **/
+	public function loeschFaecherToDb($loeschFaecher, $operation){
+				
 		$timestamp = time();
 		$date = date("Y-m-d H:i:s", $timestamp);
 
-		
-		try{
-			$this->wpdb->query("TRUNCATE TABLE ".$this->tabellenname.';');
-		} catch (Exception $ex) {
-			echo "Die Tabelle konnte nicht geleert werden: ".$ex;
+		if ($operation == "new"){
+			try{
+					$this->wpdb->query("TRUNCATE TABLE ".$this->tabellenname.';');
+				} catch (Exception $ex) {
+					echo "Die Tabelle konnte nicht geleert werden: ".$ex;
+				}
 		}
 		try{
 			foreach($loeschFaecher as $row){
@@ -66,7 +68,7 @@ class LoeschFaecherHandler{
 					<th>id</th><!-- comment -->
 					<th>Fach Untis</th>
 					<th>Fach Schild</th>
-					<th>Klasse</th>
+					<th>Filter Klasse</th>
 					<th>Bemerkung</th>
 					<th>Importdatum</th>
 				</tr>	

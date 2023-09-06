@@ -520,22 +520,24 @@ class CSVHandler{
 	public function csv_erzeugen($resultset){
 		$columns=array('schuljahr','halbjahr','klasse', 'fach','lehrer');	
 		$csv = Writer::createFromString('');
+		//let's convert the incoming data from iso-88959-15 to utf-8
+		$csv->addStreamFilter('convert.iconv.ISO-8859-15/UTF-8');
 		$filename="schildimport.csv";
 		 $csv->insertOne($columns); // Spaltenüberschriften hinzufügen
 		$i=0;
-    foreach ($resultset as $row) {
+		foreach ($resultset as $row) {
 
-			$rowArray=array($row->schuljahr,$row->halbjahr,$row->klasse,$row->fach,$row->lehrer);
-		$csv->insertOne($rowArray); // Datenzeile hinzufügen
-		$i++;
-    }
-	echo "Die nachstehende Datei hat ".$i." Datensätze:";
-	
+				$rowArray=array($row->schuljahr,$row->halbjahr,$row->klasse,$row->fach,$row->lehrer);
+			$csv->insertOne($rowArray); // Datenzeile hinzufügen
+			$i++;
+		}
+		echo "Die nachstehende Datei hat ".$i." Datensätze:";
+
 		// CSV in eine Datei schreiben
-    $file = fopen($filename, 'w');
-    fwrite($file, $csv->getContent());
-    fclose($file);
-	
+		$file = fopen($filename, 'w');
+		fwrite($file, $csv->getContent());
+		fclose($file);
+
 	}
 
 }

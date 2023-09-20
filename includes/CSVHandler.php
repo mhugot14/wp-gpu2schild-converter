@@ -11,9 +11,8 @@ use League\Csv\Writer;
 use League\Csv\Exception;
 
 class CSVHandler{
-	
   
-  private $dateiName;
+private $dateiName;
   private $tmpPfad;
   private $schuljahr;
   private $halbjahr;
@@ -110,8 +109,6 @@ class CSVHandler{
 		$this->faecher_loeschen();
 		
 		echo '<h3>Daten ausgeben</h3>';
-		$resultSet=$wpdb->get_results('SELECT * FROM '.$tabellenname.';');
-		$this->db_tabellen_ausgabe($resultSet);
 	
   }
 	  
@@ -474,70 +471,6 @@ class CSVHandler{
 	//	echo "Insgesamt wurden <b>".$loeschCounter."</b> Einträge gelöscht<br/>";
 		echo "Insgesamt wurden <b>".$deleteCount."</b> Einträge gelöscht<br/>";
 		echo "Insgesamt wurden <b>".$updateCount."</b> Einträge aktualisiert<br/>";
-	}
-			
-	public function db_tabellen_ausgabe($resultSet){
-		echo '<p>Anzahl Datensätze in der Datenbanktabelle <b>'.count($resultSet).'</b>.</p>';
-		if (count($resultSet)){
-			$this->csv_erzeugen( $resultSet );
-			?>
-			<a href='schildimport.csv'>CSV-Datei herunterladen</a> <br/>
-		<h3>Alle Schild-Import-Daten auf einen Blick</h3>	
-		<table class="wp-list-table sortable fixed striped table-view-list pages">
-			<thead>
-				<tr>
-					<th>id</th><!-- comment -->
-					<th>Schuljahr</th>
-					<th>Import für Halbjahr</th>
-					<th>Klasse</th>
-					<th>Fach</th>
-					<th>Lehrer</th>
-					<th>gilt für Halbjahr</th>
-				</tr>	
-			</thead>
-			<tbody>
-			<?php
-			
-			foreach ( $resultSet as $row ) {
-				echo "<tr>";
-				echo "<td>" .$row->id  . "</td>";
-				echo "<td>" .$row->schuljahr . "</td>";
-				echo "<td>" .$row->halbjahr . "</td>";
-				echo "<td>" .$row->klasse . "</td>";
-				echo "<td>" .$row->fach . "</td>";
-				echo "<td>" .$row->lehrer . "</td>";
-				echo "<td>" .$row->giltfuerHalbjahr . "</td>";
-				echo "</tr>";
-}
-			echo "</tbody></table>";
-		}
-		else{
-			echo "Es sind keine Datensätze vorhanden.";
-		}
-			
-	}
-	
-	public function csv_erzeugen($resultset){
-		$columns=array('schuljahr','halbjahr','klasse', 'fach','lehrer');	
-		$csv = Writer::createFromString('');
-		//let's convert the incoming data from iso-88959-15 to utf-8
-		$csv->addStreamFilter('convert.iconv.ISO-8859-15/UTF-8');
-		$filename="schildimport.csv";
-		 $csv->insertOne($columns); // Spaltenüberschriften hinzufügen
-		$i=0;
-		foreach ($resultset as $row) {
-
-				$rowArray=array($row->schuljahr,$row->halbjahr,$row->klasse,$row->fach,$row->lehrer);
-			$csv->insertOne($rowArray); // Datenzeile hinzufügen
-			$i++;
-		}
-		echo "Die nachstehende Datei hat ".$i." Datensätze:";
-
-		// CSV in eine Datei schreiben
-		$file = fopen($filename, 'w');
-		fwrite($file, $csv->getContent());
-		fclose($file);
-
 	}
 
 }

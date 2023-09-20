@@ -7,10 +7,12 @@ namespace untisSchildConverter;
 include_once 'CSVHandler.php';
 include_once 'LoeschFaecherHandler.php';
 include_once 'LoeschKlasseHandler.php';
+include_once 'SchildImportRepository.php';
 
 class Settings{
 	private $myLoeschFaecherHandler;
 	private $myLoeschKlasseHandler;
+	private $mySchildImportRepository;
 	
 	public function __construct(){
 		add_action('admin_menu', [$this, 'create_menu']);
@@ -75,7 +77,7 @@ class Settings{
 			'GPU Daten',
 			[ $this, 'render_gpu002Anzeige2_settings' ],
 			get_current_screen(),
-			'advanced'
+			'normal'
 		);	
 	}
 	
@@ -190,10 +192,10 @@ public function render_gpuUploadField_settings( $object, array $args ) {
 				<?php
 		}
 		else{
-			printf('Keine Datei da Digga');
+			printf('Keine Datei vorhanden!');
 		}
 				
-		}	
+}	
 		
 	public function render_gpu002Anzeige2_settings( $object, array $args ) {
 		if (isset($_POST['submit'])) {
@@ -220,8 +222,9 @@ public function render_gpuUploadField_settings( $object, array $args ) {
 		else{
 			printf('Keine Datei da mein Freund');
 		}
+		$mySchildImportRepository = new SchildImportRepository();
+		$mySchildImportRepository->tabelleAusgeben();
 	}
-	
 	
 	public function render_loesch_faecher_eingabe_neu( $object, array $args ){
 	?>

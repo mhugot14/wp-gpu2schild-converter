@@ -149,7 +149,9 @@ private $dateiName;
 			 */
 			if($this->halbjahr==='1'){
 				if($giltFuerHalbjahr==='2'){
-					$importFuerHalbjahr='';
+					//Wird im ersten Halbjahr ein Fach genommen nur für das 2. Halbjahr, wird der 
+					//Schleifendurchgang übersprungen mit Continue.
+					continue;
 				}
 			}
 			

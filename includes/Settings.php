@@ -38,7 +38,7 @@ class Settings{
 		$hook_suffix2=add_submenu_page(
 					'mh_u2s_main-menu',
 					'Klassen konfigurieren',
-					'Klassen',
+					'Klassenänderungen',
 					'install_plugins',
 					'mh_u2s_klassen',
 					[ $this, 'render_klassen' ]
@@ -46,11 +46,20 @@ class Settings{
 		$hook_suffix3=add_submenu_page(
 					'mh_u2s_main-menu',
 					'Fächer konfigurieren',
-					'Fächer',
+					'Fächeränderungen',
 					'install_plugins',
 					'mh_u2s_faecher',
 					[ $this, 'render_faecher' ]
 		);
+		$hook_suffix4=add_submenu_page(
+					'mh_u2s_main-menu',
+					'Schild-Fächer',
+					'Schild-Fächer',
+					'install_plugins',
+					'mh_u2s_schildfaecher',
+					[ $this, 'render_schildfaecher' ]
+		);
+		
 		
 		add_action(
 			'load-' . $hook_suffix,
@@ -61,6 +70,9 @@ class Settings{
 		);
 		add_action(
 				'load-'.$hook_suffix2,[$this,'register_metaboxes_klassen']
+		);
+		add_action(
+				'load-'.$hook_suffix4,[$this,'register_metaboxes_schildfaecher']
 		);
 		
 	}
@@ -118,11 +130,21 @@ class Settings{
 				'normal'
 		);
 	}
+	public function register_metaboxes_schildfaecher(){
+		//Metabox für die Unterseite SchildFaecher
+		add_meta_box(
+				'mh_u2s_schild_faecher_eingabe',
+				'Fächerliste aus Schild hier hochladen',
+				[$this,'render_schildfaecher_eingabe'],
+				'mh_u2s_schildfaecher',
+				'normal'
+		);
+	}
 	
 public function render_gpuUploadField_settings( $object, array $args ) {
 	
 		?>
-<p>Lade hier deine GPU002.<b>csv</b> hoch:</p>
+<p>Lade hier deine GPU002.<b>csv</b> oder <b>.txt</b> hoch:</p>
 				<form method="post" enctype="multipart/form-data">
 					<input type="file" name="csv_file" id="csv_file" class="file"><br/><br/>
 					<label>Schuljahr: </label> 
@@ -192,7 +214,7 @@ public function render_gpuUploadField_settings( $object, array $args ) {
 				<?php
 		}
 		else{
-			printf('Keine Datei vorhanden!');
+			printf('Es wurde bisher keine neue Datei hochgeladen!');
 		}
 				
 }	
@@ -215,12 +237,12 @@ public function render_gpuUploadField_settings( $object, array $args ) {
 		}
 			else{
 				printf('<p style="font-size:1.4em; color:red;">'
-						. 'Bitte lade eine CSV-Datei oder eine TXT-DAtei hoch.</p>');
+						. 'Bitte lade eine CSV-Datei oder eine TXT-Datei hoch.</p>');
 			}	
 		
 		}
 		else{
-			printf('Keine Datei da mein Freund');
+			printf('Bisher wurde keine Datei hochgeladen.');
 		}
 		$mySchildImportRepository = new SchildImportRepository();
 		$mySchildImportRepository->tabelleAusgeben();
@@ -450,7 +472,7 @@ if (isset($_POST['submit'])) {
   function render_faecher(){
 		?>
 	<div class="wrap">
-		<h1><?php echo get_admin_page_title(); ?>!</h1>
+		<h1><?php echo get_admin_page_title(); ?></h1>
 		<?php
 			wp_nonce_field( 'closedpostboxes', 'closedpostboxesnonce', false );
 			wp_nonce_field( 'meta-box-order', 'meta-box-order-nonce', false );
@@ -480,6 +502,38 @@ if (isset($_POST['submit'])) {
 		<?php
 	}
 	
+function render_schildfaecher(){
+		?>
+	<div class="wrap">
+		<h1><?php echo get_admin_page_title(); ?></h1>
+		<?php
+			wp_nonce_field( 'closedpostboxes', 'closedpostboxesnonce', false );
+			wp_nonce_field( 'meta-box-order', 'meta-box-order-nonce', false );
+			
+		?>
+		<div id="poststuff" class="metabox-holder">
+			
+			<div id="post-body" class="">
+				<div id="post-body-content" class="h">
+				<?php
+				do_meta_boxes( 'mh_u2s_schildfaecher', 'normal', null );
+				
+				?>
+				</div>
+				<div id="post-body-content" class="">
+				<?php
+					if (isset($_POST['submit'])) {
+						do_meta_boxes( get_current_screen(), 'advanced', null );
+					}
+				?>	
+				</div>
+			</div>
+		</div>
+	<br class="clear"/>
+
+	</div>
+		<?php
+	}
 	
 }
 	

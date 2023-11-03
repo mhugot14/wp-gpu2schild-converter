@@ -30,9 +30,9 @@ class SchildFaecherRepository {
 	 function tabelleAusgeben(){
 		$resultSet = $this->wpdb->get_results('SELECT * FROM '.$this->tabellenname.';'); 
 		 if (count($resultSet)){
-			echo '<h3>Schild-Fächer</h3><p>Anzahl Datensätze in der Datenbanktabelle <b>'.count($resultSet).'</b>.</p>';
+			echo '<h3>SchildNRW-Fächer</h3><p>Anzahl Datensätze in der Datenbanktabelle <b>'.count($resultSet).'</b>.</p>';
 			?>	
-		<p>Nachstehende Fächer sind in Schild angelegt.
+		<p>Nachstehende Fächer sind in SchildNRW angelegt.
 		<table class="wp-list-table widefat">
 			<thead>
 				<tr>

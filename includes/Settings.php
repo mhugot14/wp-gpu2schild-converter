@@ -55,8 +55,8 @@ class Settings{
 		);
 		$hook_suffix4=add_submenu_page(
 					'mh_u2s_main-menu',
-					'Schild-Fächer',
-					'Schild-Fächer',
+					'SchildNRW-Fächer',
+					'SchildNRW-Fächer',
 					'install_plugins',
 					'mh_u2s_schildfaecher',
 					[ $this, 'render_schildfaecher' ]

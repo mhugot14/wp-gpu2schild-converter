@@ -16,12 +16,6 @@ namespace untisSchildConverter;
  * sind und somit einen Import-Fehler auslösen.
  * @author micha
  */
-chdir(__DIR__);
-require '../vendor/autoload.php';
-
-use PhpOffice\PhpSpreadsheet\Spreadsheet;
-
-
 class SchildFaecherRepository {
 	
 	private $wpdb;

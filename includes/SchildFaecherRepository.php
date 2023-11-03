@@ -19,20 +19,70 @@ namespace untisSchildConverter;
 class SchildFaecherRepository {
 	
 	private $wpdb;
-	private $tabSchildFaecher; //Tabellenname mit den Schildimporten
+	private $tabellenname; //Tabellenname mit den Schildimporten
 
 	 function __construct(){
 		 global $wpdb;
 		 $this->wpdb=$wpdb;
-		 $this->tabSchildFaecher = $this->wpdb->prefix.'usc_schildfaecher';
+		 $this->tabellenname = $this->wpdb->prefix.'usc_schildfaecher';
 	 }
 	 
 	 function tabelleAusgeben(){
-		 
+		$resultSet = $this->wpdb->get_results('SELECT * FROM '.$this->tabellenname.';'); 
+		 if (count($resultSet)){
+			echo '<h3>Schild-Fächer</h3><p>Anzahl Datensätze in der Datenbanktabelle <b>'.count($resultSet).'</b>.</p>';
+			?>	
+		<p>Nachstehende Fächer sind in Schild angelegt.
+		<table class="wp-list-table widefat">
+			<thead>
+				<tr>
+					<th>id</th><!-- comment -->
+					<th>Interne Kurzform</th>
+					<th>ASD Kürzel</th>
+					<th>Bezeichnung</th>
+				</tr>	
+			</thead>
+			<tbody>
+			<?php
+			
+			foreach ( $resultSet as $row ) {
+				echo "<tr>";
+				echo "<td>" .$row->id  . "</td>";
+				echo "<td>" .$row->interne_kurzform . "</td>";
+				echo "<td>" .$row->asd_kuerzel . "</td>";
+				echo "<td>" .$row->bezeichnung . "</td>";
+				echo "</tr>";
+				}
+			echo "</tbody></table>";
+		 }
+		else{
+			echo "Es sind keine Datensätze vorhanden.";
+		}
+
 	 }
 	 
-	 function tabelleEinlesen(){
+	 function tabelleEinlesen($data){
 		 
-		 
+		 try{
+					$this->wpdb->query("TRUNCATE TABLE ".$this->tabellenname.';');
+				} catch (Exception $ex) {
+					echo "Die Tabelle konnte nicht geleert werden: ".$ex;
+				}
+		
+		try{
+			foreach($data as $row){
+				$this->wpdb->insert(
+				$this->tabellenname,
+					
+					array(
+						'interne_kurzform' => $row['0'],
+						'asd_kuerzel' => $row['1'],
+						'bezeichnung' => $row['2'],									
+					)
+				);
+			}
+		} catch (Exception $ex) {
+			echo "Die Schild-Faecher konnten nicht gespeichert werden: ".$ex;
+		}
 	 }
-	 }
+	}

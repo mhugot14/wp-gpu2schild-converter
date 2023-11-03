@@ -8,6 +8,8 @@ include_once 'CSVHandler.php';
 include_once 'LoeschFaecherHandler.php';
 include_once 'LoeschKlasseHandler.php';
 include_once 'SchildImportRepository.php';
+include_once 'ExcelHandler.php';
+include_once 'SchildFaecherRepository.php';
 
 class Settings{
 	private $myLoeschFaecherHandler;
@@ -529,10 +531,48 @@ function render_schildfaecher(){
 				</div>
 			</div>
 		</div>
-	<br class="clear"/>
-
-	</div>
+		</div>
+	<div class="wrap">
+		
 		<?php
+		$mySchildFaecherRepository = new SchildFaecherRepository();
+		echo $mySchildFaecherRepository->tabelleAusgeben();
+	?>
+		
+	</div>
+	<?php	
+	}
+	public function render_schildfaecher_eingabe(){
+		
+		$myExcelhandler = new ExcelHandler();
+		$mySchildFaecherRepository = new SchildFaecherRepository();
+		
+		?>
+<p>Lade hier den Excel-Export mit Schild-Fächern hoch (xlsx-Datei):</p>
+				<form method="post" enctype="multipart/form-data">
+					<input type="file" name="xlsx_file" id="xlsx_file" class="file"><br/><br/>
+					<input type="submit" name="submit" value="Datei hochladen" class="button button-primary">
+					</form><br/>
+					
+		<?php
+			if (isset($_POST['submit'])){
+					// Überprüfen, ob eine Datei ausgewählt wurde
+						if (isset($_FILES['xlsx_file'])) {
+							$file_name = $_FILES['xlsx_file']['name'];	
+							$file_type = $_FILES['xlsx_file']['type'];
+							if ($file_type == "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"){
+								$upload_dir = '..\wp-content\plugins\wp-gpu2schild-converter\uploads';
+								$file_path = $upload_dir . '/' . $file_name;
+								move_uploaded_file($_FILES['xlsx_file']['tmp_name'], $file_path);
+								$daten=$myExcelhandler->spreadsheetReader($file_path,3);
+								$mySchildFaecherRepository->tabelleEinlesen($daten);
+							}
+							else{
+								echo "<b>Lade eine Excel-Datei noch</b><br/>";
+							}						
+						}	
+						
+			}		
 	}
 	
 }

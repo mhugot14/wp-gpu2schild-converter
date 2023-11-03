@@ -7,7 +7,6 @@ namespace untisSchildConverter;
 //In Anlehnung an https://www.a-coding-project.de/ratgeber/php/csv-import-in-php
 require_once plugin_dir_path(__FILE__) . 'league-csv/autoload.php';
 use League\Csv\Reader;
-use League\Csv\Writer;
 use League\Csv\Exception;
 
 class CSVHandler{

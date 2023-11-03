@@ -15,6 +15,7 @@ class Settings{
 	private $myLoeschFaecherHandler;
 	private $myLoeschKlasseHandler;
 	private $mySchildImportRepository;
+	private $mySchildFaecherRepository;
 	
 	public function __construct(){
 		add_action('admin_menu', [$this, 'create_menu']);
@@ -22,7 +23,7 @@ class Settings{
 	}
 	public function create_menu(){
 		add_menu_page('Untis Schild Converter',
-					 'Untis2Schild',
+					 'UNTIS2Schild',
 					 'manage_options', 
 					 'mh_u2s_main-menu', 
 					 [$this, 'render_Untis2Schild_page'],
@@ -55,8 +56,8 @@ class Settings{
 		);
 		$hook_suffix4=add_submenu_page(
 					'mh_u2s_main-menu',
-					'Schild-Fächer',
-					'Schild-Fächer',
+					'Schild-NRW Fächer',
+					'Schild-NRW Fächer',
 					'install_plugins',
 					'mh_u2s_schildfaecher',
 					[ $this, 'render_schildfaecher' ]
@@ -404,11 +405,11 @@ if (isset($_POST['submit'])) {
 		?>
 <?php		
 	}
-	
-	
+
+		
 	public function render_Untis2Schild_page ( ){
 		echo '<H1>Herzlich Willkommen</h1>';
-		echo '<p>Hier folgen noch die asuführlichen Plugin-Erklärungen</p>';
+		echo '<p>Hier folgen noch die ausführlichen Plugin-Erklärungen</p>';
 	}
 	
 	function render_Uploads(){

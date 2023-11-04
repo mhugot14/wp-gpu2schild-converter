@@ -580,7 +580,7 @@ function render_schildfaecher(){
 							$file_name = $_FILES['xlsx_file']['name'];	
 							$file_type = $_FILES['xlsx_file']['type'];
 							if ($file_type == "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"){
-								$upload_dir = '..\wp-content\plugins\wp-gpu2schild-converter\uploads';
+								$upload_dir = '..\wp-content\plugins\untisSchildConverter\uploads';
 								$file_path = $upload_dir . '/' . $file_name;
 								move_uploaded_file($_FILES['xlsx_file']['tmp_name'], $file_path);
 								$daten=$myExcelhandler->spreadsheetReader($file_path,3);

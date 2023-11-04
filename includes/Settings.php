@@ -10,15 +10,18 @@ include_once 'LoeschKlasseHandler.php';
 include_once 'SchildImportRepository.php';
 include_once 'ExcelHandler.php';
 include_once 'SchildFaecherRepository.php';
+include_once 'Plugin_Helpers.php';
 
 class Settings{
 	private $myLoeschFaecherHandler;
 	private $myLoeschKlasseHandler;
 	private $mySchildImportRepository;
+	private $myPluginHelpers;
 	
 	public function __construct(){
 		add_action('admin_menu', [$this, 'create_menu']);
 		do_action( 'untisSchildConverter/Settings/init', $this );
+		$this->myPluginHelpers = new Plugin_Helpers;
 	}
 	public function create_menu(){
 		add_menu_page('Untis Schild Converter',
@@ -247,7 +250,23 @@ public function render_gpuUploadField_settings( $object, array $args ) {
 			printf('Bisher wurde keine Datei hochgeladen.');
 		}
 		$mySchildImportRepository = new SchildImportRepository();
+		$fachabgleich=$mySchildImportRepository->schildnrwFachabgleich();
+		
+		echo '<h3>Facheinträge, die nicht in SCHILDNRW sind: <span style="color:red;">'.count($fachabgleich).'</span></h3>';
+		?>
+		
+		<details style="background: #F6E3CE; border-left:5px solid #DF7401; padding:5px; width:50%;">
+			<summary style="padding:2px;">Nachstehende Fächer aus Untis sind nicht in der importieren
+			SCHILD-NRW-Fächerliste vorhanden (klicken um alle anzeigen zu lassen).</summary>
+	
+		<?php
+			$this->myPluginHelpers->resultsetToTable( $fachabgleich);
+		
+			echo '</details>';
+		
 		$mySchildImportRepository->tabelleAusgeben();
+		
+		
 	}
 	
 	public function render_loesch_faecher_eingabe_neu( $object, array $args ){

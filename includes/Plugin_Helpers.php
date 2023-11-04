@@ -22,15 +22,16 @@ class Plugin_Helpers{
 		$usc_loesch_faecher = $wpdb->prefix.'usc_loesch_faecher';
 		$usc_loesch_klassen = $wpdb->prefix.'usc_loesch_klassen';
 		$usc_schildimport = $wpdb->prefix.'usc_schildimport';
+		$usc_schildfaecher = $wpdb->prefix.'usc_schildfaecher';
 		$sql_usc_loesch_faecher = "CREATE TABLE `$usc_loesch_faecher` (
 									`id` int(11) NOT NULL AUTO_INCREMENT,
 									`fach_untis` varchar(50) NOT NULL,
 									`fach_schild` varchar(50) NOT NULL,
-									`klasse` varchar(10) NOT NULL,
+									`klasse` varchar(50) NOT NULL,
 									`bemerkung` varchar(100) NOT NULL,
 									`importdatum` datetime NOT NULL,
 									PRIMARY KEY (`id`)
-									)ENGINE=InnoDB AUTO_INCREMENT=28 $charset_collate;";
+									)ENGINE=InnoDB AUTO_INCREMENT=28 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_520_ci;";
 		
 		$sql_usc_loesch_klassen = "CREATE TABLE `$usc_loesch_klassen` (
 									`id` int(11) NOT NULL AUTO_INCREMENT,
@@ -39,7 +40,7 @@ class Plugin_Helpers{
 									`bemerkung` varchar(100) NOT NULL,
 									`importdatum` datetime NOT NULL,
 									PRIMARY KEY (`id`)
-								   ) ENGINE=InnoDB AUTO_INCREMENT=28 $charset_collate;";
+								   ) ENGINE=InnoDB AUTO_INCREMENT=28 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_520_ci;";
 		
 		$sql_usc_schildimport = "CREATE TABLE  `$usc_schildimport`(
 									`id` int(10) unsigned NOT NULL AUTO_INCREMENT,
@@ -51,12 +52,26 @@ class Plugin_Helpers{
 									`giltfuerHalbjahr` varchar(5) NOT NULL,
 									`importID` int(11) NOT NULL,
 									PRIMARY KEY (`id`)
-								   ) ENGINE=InnoDB AUTO_INCREMENT=1474 $charset_collate;";
+								   ) ENGINE=InnoDB AUTO_INCREMENT=1474 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_520_ci;";
+		
+		$sql_usc_schildfaecher = "CREATE TABLE `$usc_schildfaecher` (
+				`id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT,
+				`schuljahr` smallint(6) NOT NULL,
+				`halbjahr` varchar(3) NOT NULL,
+				`klasse` varchar(10) NOT NULL,
+				`fach` varchar(10) NOT NULL,
+				`lehrer` varchar(10) NOT NULL,
+				`giltfuerHalbjahr` varchar(5) NOT NULL,
+				`importID` int(11) NOT NULL,
+				 PRIMARY KEY (`id`)
+			  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_520_ci;";
 		
 		require_once ABSPATH . 'wp-admin/includes/upgrade.php';
 			dbDelta($sql_usc_loesch_faecher);
 			dbDelta($sql_usc_loesch_klassen);
 			dbDelta($sql_usc_schildimport);
+			dbDelta($sql_usc_schildfaecher);
+			
 			
 		
 		
@@ -77,6 +92,7 @@ class Plugin_Helpers{
 	
 	public function resultsetToTable(array $resultSet){	
     // Tabelleninhalte aus dem ResultSet
+		echo '<table class="wp-list-table sortable fixed striped table-view-list pages">';
 		foreach ($resultSet as $row) {
 			echo '<tr>';
 			foreach ($row as $columnValue) {
@@ -84,6 +100,7 @@ class Plugin_Helpers{
 			}
 			echo '</tr>';
 		}
+		echo '</table>';
 	}
 	
 }

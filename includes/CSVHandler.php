@@ -11,7 +11,7 @@ use League\Csv\Exception;
 
 class CSVHandler{
   
-private $dateiName;
+  private $dateiName;
   private $tmpPfad;
   private $schuljahr;
   private $halbjahr;
@@ -475,4 +475,3 @@ private $dateiName;
 	}
 
 }
-?>

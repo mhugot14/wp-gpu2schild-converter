@@ -5,7 +5,7 @@ namespace untisSchildConverter;
  * Click nbfs://nbhost/SystemFileSystem/Templates/Scripting/EmptyPHP.php to edit this template
  */
 //In Anlehnung an https://www.a-coding-project.de/ratgeber/php/csv-import-in-php
-require_once plugin_dir_path(__FILE__) . 'league-csv\autoload.php';
+require_once plugin_dir_path(__FILE__) . 'league-csv/autoload.php';
 require_once WP_PLUGIN_DIR . '/untisSchildConverter/vendor/autoload.php';
 //use League\Csv\Reader;
 use League\Csv\Writer;

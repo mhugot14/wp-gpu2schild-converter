@@ -56,13 +56,9 @@ class Plugin_Helpers{
 		
 		$sql_usc_schildfaecher = "CREATE TABLE `$usc_schildfaecher` (
 				`id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT,
-				`schuljahr` smallint(6) NOT NULL,
-				`halbjahr` varchar(3) NOT NULL,
-				`klasse` varchar(10) NOT NULL,
-				`fach` varchar(10) NOT NULL,
-				`lehrer` varchar(10) NOT NULL,
-				`giltfuerHalbjahr` varchar(5) NOT NULL,
-				`importID` int(11) NOT NULL,
+				`interne_kurzform` varchar(20) NOT NULL,
+				`asd_kuerzel` varchar(20) NOT NULL,
+				`bezeichnung` varchar(150) NOT NULL,
 				 PRIMARY KEY (`id`)
 			  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_520_ci;";
 		

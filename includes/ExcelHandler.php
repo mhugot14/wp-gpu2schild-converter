@@ -87,6 +87,31 @@ class ExcelHandler {
 		$html .= '</table>';
 		return $html;
 	}
+	
+	 public function spreadsheetWriter($resultset,$dateiname, $kopfzeile){
+		 $spreadsheet = new Spreadsheet();
+		 $worksheet = $spreadsheet->getActiveSheet();
+		 $row=1;
+		 $col=1;
+		//Kopfzeile einfügen
+		 foreach ($kopfzeile as $cellData){
+			 $worksheet->setCellValueByColumnAndRow($col, $row, $cellData);
+			 $col++;
+		 }
+		 $row=2;
+		 //Daten einfügen aus dem Resultset
+		 foreach ($resultset as $rowData) {
+			$col = 1;
+				foreach ($rowData as $cellData) {
+					$worksheet->setCellValueByColumnAndRow($col, $row, $cellData);
+					$col++;
+				}	
+			 $row++;
+			}
+		$writer = \PhpOffice\PhpSpreadsheet\IOFactory::createWriter($spreadsheet, 'Xlsx');
+		$writer->save($dateiname.'.xlsx');
+
+	 }
 
 
 }

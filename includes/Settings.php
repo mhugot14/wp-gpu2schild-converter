@@ -426,8 +426,46 @@ if (isset($_POST['submit'])) {
 	
 	
 	public function render_Untis2Schild_page ( ){
-		echo '<H1>Herzlich Willkommen</h1>';
-		echo '<p>Hier folgen noch die asuführlichen Plugin-Erklärungen</p>';
+	?>
+		<h1>Herzlich Willkommen zum Untis2SCHILDNRW Konverter</h1>
+		<p>
+			<i>Das Plugin hilft dir dabei die aktuell unterichteten Fächer 
+				den Schülerinnen und Schülern in SCHILD NRW im aktuellen Lernabschnitt zuzuordnen.
+				Dabei wird folgendes gemacht: </i></p>
+		<ol>
+			<li>Export der Unterrichtsverteilung der aktuellen Periode aus Untis (GPU2....TXT)</li>
+			<li>Diese Datei lädst du hier im Plugin hoch.</li>
+			<li>Das Plugin macht nun folgende Schritte</li>
+			<ol>
+				<li>Dubletten entfernen</li>
+				<li>Klassenbezeichnungen löschen oder anpassen (z.B. Vertretungsreserven)</li>
+				<li>Fächer löschen oder anpassen (z.B: Lernfeldunterricht in Fächer oder Fachumbenennungen</li><!-- comment -->
+				<li>Ablgeich mit vorhandenen SchildNRW-Fächern</li>
+				<li>Bereitstellung einer Import-Datei für SchildNRW</li>
+			</ol>
+			<li>Import der Unterrichtsverteilung in SchildNRW</li>
+		</ol>
+				
+		<p>Nach der Verwendung des Plugins hast du in SCHILDNRW bei allen SuS die erteilten
+		Unterrichtsstunden in diesem Halbjahr im Klassenverband zugeordnet. Kurse etc.
+		müssen dann noch manuell zugeordnet werden. </p>
+		
+		<h2>Wie solltest du vorgehen?</h2>
+		<p>Wenn du das Plugin das <b>allererste Mal</b> einsetzt, exportiere zuerst
+			in Schild NRW die vorhandenen Fächer. Die importiert du dann hier mithilfe
+			einer Excel-Datei. Im nächsten Schritt würde ich den GPU aus Untis hier 
+			importieren und schauen was herauskommt. Du stellst fest, dass Fächer in Schild fehlen
+			oder dass in UNTIS Fächer sind, die es in Schild nicht gibt.<br/>
+			Jetzt solltest du Fächer und KLassen definieren, die aus den UNTIS-Daten gelöscht oder 
+			verändert werden sollen. Im Anschluss importierst du erneute die GPU und prüfst
+		was dann als Ergebnis herauskommt. <br/><br/>
+		Im letzten Schritt lädst du die Excel-Datei herunter, die du dann in Schild importieren kannst.</p>
+		
+		
+			
+		
+	<?php
+	
 	}
 	
 	function render_Uploads(){
@@ -581,7 +619,7 @@ function render_schildfaecher(){
 							$file_type = $_FILES['xlsx_file']['type'];
 							if ($file_type == "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"){
 								$upload_dir = '..\wp-content\plugins\untisSchildConverter\uploads';
-								$file_path = $upload_dir . '\'' . $file_name;
+								$file_path = $upload_dir . '\\' . $file_name;
 								move_uploaded_file($_FILES['xlsx_file']['tmp_name'], $file_path);
 								$daten=$myExcelhandler->spreadsheetReader($file_path,3);
 								$mySchildFaecherRepository->tabelleEinlesen($daten);

@@ -605,6 +605,10 @@ function render_schildfaecher(){
 		$mySchildFaecherRepository = new SchildFaecherRepository();
 		
 		?>
+		<p>
+			In Schild-NRW kannst du unter <i>Unterrichtsfächer->Excel-Export</i>
+			die Fächer exportieren und hier importieren.
+		</p>
 <p>Lade hier den Excel-Export mit Schild-Fächern hoch (xlsx-Datei):</p>
 				<form method="post" enctype="multipart/form-data">
 					<input type="file" name="xlsx_file" id="xlsx_file" class="file"><br/><br/>

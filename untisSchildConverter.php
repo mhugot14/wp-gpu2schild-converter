@@ -12,7 +12,7 @@ Plugin Name: Untis2Schild Converter
 Plugin URI: www.lebk-muenster.de
 Description: Das Plugin konvertiert die GPU002 in eine importfähige Datei für Schild.
  * Dabei begleitet dich das Plugin, um die Datei entsprechend zu konfiguieren.
-Version: 0.2 
+Version: 0.9 
 Author: Michael Hugot
 Author URI: Berufsschulwissen.de
 License: GPLv2

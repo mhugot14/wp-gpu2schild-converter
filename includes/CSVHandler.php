@@ -221,8 +221,9 @@ class CSVHandler{
 	}
 	
 	public function faecher_loeschen(){
-		//Alle Einträge aus der Tabelle Löschfächer holen
-		$loeschFaecher = $this->wpdb->get_results('SELECT * FROM '.$this->tabLoeschFaecher.';');
+		//Alle Einträge aus der Tabelle Löschfächer holen, dabei wird sortiert, 
+		//so dass erst gelöscht wird und dann geändert
+		$loeschFaecher = $this->wpdb->get_results('SELECT * FROM '.$this->tabLoeschFaecher.' ORDER BY fach_schild;');
 		?>
 		<details style="background: #F6E3CE; border-left:5px solid #DF7401; padding:5px; width:50%;">
 			<summary style="padding:2px;">Folgende Enträge wurden aufgrund der Fächertabelle

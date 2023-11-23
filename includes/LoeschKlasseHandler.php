@@ -55,7 +55,7 @@ class LoeschKlasseHandler{
 	
 	public function loeschKlasseAnzeigen(){
 		
-		$resultSet=$this->wpdb->get_results('SELECT * FROM '.$this->tabellenname.';');
+		$resultSet=$this->wpdb->get_results('SELECT * FROM '.$this->tabellenname.' ORDER BY klasse_untis;');
 		
 			echo '<p>Anzahl Datensätze in der Datenbanktabelle: <b>'.count($resultSet).'</b>.</p>';
 		if (count($resultSet)){

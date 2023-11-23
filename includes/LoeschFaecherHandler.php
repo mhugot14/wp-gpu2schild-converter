@@ -57,7 +57,7 @@ class LoeschFaecherHandler{
 	
 	public function loeschFaecherAnzeigen(){
 		
-		$resultSet=$this->wpdb->get_results('SELECT * FROM '.$this->tabellenname.';');
+		$resultSet=$this->wpdb->get_results('SELECT * FROM '.$this->tabellenname.' ORDER BY fach_untis;');
 		
 			echo '<p>Anzahl Datensätze in der Datenbanktabelle: <b>'.count($resultSet).'</b>.</p>';
 		if (count($resultSet)){

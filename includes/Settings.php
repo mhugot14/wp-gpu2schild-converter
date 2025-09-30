@@ -617,6 +617,12 @@ function render_schildfaecher(){
 					
 		<?php
 			if (isset($_POST['submit'])){
+					//Überprüfe, ob das ZipArchive überhaupt aktiviert ist
+					if (!class_exists('ZipArchive')) {
+						echo '<p style="colore:red;"><b>Der Import hat nicht funktioniert!</b><br/> Aktivieren Sie in der php.ini die PHP-Extension "zip"</p>';
+						wp_die('');
+						
+					}
 					// Überprüfen, ob eine Datei ausgewählt wurde
 						if (isset($_FILES['xlsx_file'])) {
 							$file_name = $_FILES['xlsx_file']['name'];	

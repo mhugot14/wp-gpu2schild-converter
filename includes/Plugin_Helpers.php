@@ -7,6 +7,8 @@
  */
 namespace untisSchildConverter;
 
+require_once __DIR__ . '/../vendor/autoload.php';
+
 class Plugin_Helpers{
 	public static function activate(): void{
 		/*Hier passiert das, was passiert, wenn das Plugin aktiviert wird

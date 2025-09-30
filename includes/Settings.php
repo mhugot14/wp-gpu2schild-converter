@@ -11,6 +11,7 @@ include_once 'SchildImportRepository.php';
 include_once 'ExcelHandler.php';
 include_once 'SchildFaecherRepository.php';
 include_once 'Plugin_Helpers.php';
+require_once __DIR__ . '/../vendor/autoload.php';
 
 class Settings{
 	private $myLoeschFaecherHandler;

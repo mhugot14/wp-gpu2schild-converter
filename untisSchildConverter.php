@@ -10,15 +10,28 @@
 /*
 Plugin Name: Untis2Schild Converter
 Plugin URI: www.lebk-muenster.de
-Description: Das Plugin konvertiert die GPU002 in eine importfähige Datei für Schild.
- * Dabei begleitet dich das Plugin, um die Datei entsprechend zu konfiguieren.
-Version: v0.9.1 
+Description: Das Plugin konvertiert die GPU002 aus UNTIS in eine importfähige Datei für Schild.
+ * Dabei begleitet dich das Plugin, um die Datei entsprechend zu konfiguieren (Unterricht löschen, aufteilen, hinzufügen).
+Version: v0.9.2 
 Author: Michael Hugot
 Author URI: Berufsschulwissen.de
 License: GPLv2
 */
 
 namespace untisSchildConverter;
+
+// Sicherheit: Direktzugriff verhindern
+if (!defined('ABSPATH')) {
+    exit; 
+}
+
+// Composer-Autoload einmalig einbinden
+$autoload = plugin_dir_path(__FILE__) . 'vendor/autoload.php';
+if (file_exists($autoload)) {
+    require_once $autoload;
+} else {
+    error_log('Untis2Schild Converter: vendor/autoload.php nicht gefunden – bitte "composer install" im Plugin-Ordner ausführen.');
+}
 
 //Plugin Aktivierung
 define('MH_uSC_FILE',__FILE__);

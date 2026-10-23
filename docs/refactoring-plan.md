@@ -15,7 +15,7 @@ eingeschränkten Personenkreis, Gestaltung und Architektur wie **mh_form_workflo
 | Fach mit mehreren Lehrkräften in einer Klasse | Lehrkraft mit den meisten Wochenstunden wird vorgeschlagen und angewendet; bei Gleichstand offener Konflikt. Entscheidungen werden gespeichert und bei späteren Importen wiederverwendet. |
 | Exportformat | Bisherige 10 Spalten unverändert (Kursbezeichnung, Klasse, Jahr, Halbjahr, Jahrgang, Fach, Kursart, Wochenstunden, Wochenstunden Lehrer, Lehrer) als XLSX; neu: Wochenstunden befüllt. |
 | Halbjahreslogik | Bleibt: Im 1. HJ werden reine „2. HJ“-Fächer weggelassen, im 2. HJ bleibt alles. |
-| Zugriff | Administrator*innen + im Backend ausgewählte Benutzer; zusätzlich Kachel im `[mh_dashboard]` von mh_form_workflows (benötigt dort einen kleinen Filter-Hook). |
+| Zugriff | Administrator*innen + im Backend ausgewählte Benutzer. **Keine** Verbindung zu mh_form_workflows (keine Dashboard-Kachel) – Entscheidung vom 2026-10-23. |
 
 ## Befunde im Altcode (werden mit dem Refactoring behoben)
 
@@ -97,8 +97,8 @@ Uploads nur aus dem PHP-Temp-Verzeichnis lesen.
 
 ### Backend
 
-Nur noch eine Einstellungsseite: berechtigte Benutzer, Seite mit dem Shortcode (für die
-Dashboard-Kachel und Links), Hinweis auf fehlende PHP-Erweiterung `zip`.
+Übersicht (Status, Shortcode-Einbindung, Datenschutz-Checks) und „Freigaben & Datenschutz“
+(berechtigte Benutzer, Aufbewahrungsfrist, Zugriffsprotokoll, Sicherung der Altregeln).
 
 ## Stand (2026-10-23)
 
@@ -146,8 +146,12 @@ Regelprüfer (`Service\Regel_Pruefer`: doppelt, wirkungslos, zusammenfassbar, Sc
 unbekannt, ohne Treffer) mit Zusammenfassen nach Nachrechnen. Auf den echten Regeln: Fach-
 regeln 92 → 36, Klassenregeln 25 → 1 bei unverändertem Ergebnis (Testtabellen).
 
-Offen: Dashboard-Kachel in mh_form_workflows (Filter-Hook nötig), Phase 7 (Altcode/Alttabellen
-entfernen nach Freigabe, uninstall.php, Version 1.0.0), Sichtprüfung im Browser.
+
+**Phase 7 + Datenschutz erledigt (2026-10-23), Version 1.0.0:** Altcode (`includes/`) und
+Alttabellen entfernt (DB-Stand 2, alte Regeln als Text in `mh_usc_altregeln_sicherung`),
+ungeschützte Exportdateien der Vorversion in `wp-admin/` gelöscht, `uninstall.php`, Zugriffs-
+protokoll `usc_protokoll`, Löschfristen (Cron `mh_usc_aufraeumen`), Seitenschutz (no-cache,
+noindex), Datenschutzkonzept `docs/datenschutz.md`.
 
 ## Umsetzungsphasen
 
@@ -156,7 +160,7 @@ entfernen nach Freigabe, uninstall.php, Version 1.0.0), Sichtprüfung im Browser
 3. **Repositories + Import** – Tabellen, Importlauf speichern, Schild-Fächer-Import.
 4. **Frontend** – Controller, Reiter, Regelverwaltung, Ergebnisprotokoll.
 5. **Konflikte + Export** – Konfliktansicht, Entscheidungen, XLSX-Download.
-6. **Backend + Dashboard** – Einstellungen, Kachel in mh_form_workflows (Filter-Hook).
+6. **Backend** – Freigaben & Datenschutz (keine Kachel in mh_form_workflows).
 7. **Aufräumen** – uninstall.php, Alttabellen entfernen (nach Bestätigung), Version 1.0.0.
 
 ## GPU002-Layout (geprüft 2026-10-23 mit `tools/gpu_pruefen.php`, echte Datei 2023-09-18)

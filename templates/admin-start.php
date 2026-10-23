@@ -10,7 +10,6 @@
  * @var array    $checks          [ status, label, text, hint? ]
  * @var string   $create_page_url
  * @var string   $fehler
- * @var array    $legacy_links    Titel => URL der Seiten der Vorversion
  *
  * Bei neuen Shortcodes oder geänderten Schritten diese Seite mitpflegen.
  */
@@ -184,7 +183,7 @@ $status_name = [ 'publish' => 'veröffentlicht', 'private' => 'privat', 'draft' 
 						<?php if ( $frontend_aktiv ) : ?>
 							<span class="usc-badge is-ok">verfügbar</span>
 						<?php else : ?>
-							<span class="usc-badge is-warn">in Arbeit</span>
+							<span class="usc-badge is-warn">nicht registriert</span>
 						<?php endif; ?>
 					</td>
 				</tr>
@@ -232,14 +231,6 @@ $status_name = [ 'publish' => 'veröffentlicht', 'private' => 'privat', 'draft' 
 				<p>Administratorinnen und Administratoren immer. Weitere Personen, z. B. aus der Verwaltung, schaltest du unter
 					<a href="<?= esc_url( admin_url( 'admin.php?page=' . \Mh\UntisSchild\Controller\Admin_Controller::FREIGABEN_SLUG ) ) ?>">Untis2Schild → Freigaben</a> frei.
 					Alle anderen sehen auf der Seite nur einen Hinweis.</p>
-				<p class="usc-note is-info" style="margin-top:0">Geplant: eine Kachel im Dashboard <code class="usc-code">[mh_dashboard]</code> von
-					<em>MH Form Workflows</em> für alle Freigegebenen.</p>
-				<?php if ( ! $frontend_aktiv ) : ?>
-					<p class="usc-note">Frontend, Freigabe und Dashboard-Kachel kommen mit den nächsten Ausbaustufen. Bis dahin
-						funktionieren die bisherigen Seiten:
-						<?php $links = []; foreach ( $legacy_links as $titel => $url ) { $links[] = '<a href="' . esc_url( $url ) . '">' . esc_html( $titel ) . '</a>'; } echo implode( ' · ', $links ); ?>
-					</p>
-				<?php endif; ?>
 			</div>
 		</div>
 	</section>
@@ -327,6 +318,9 @@ $status_name = [ 'publish' => 'veröffentlicht', 'private' => 'privat', 'draft' 
 			<li>Nur Administratorinnen, Administratoren und ausdrücklich freigeschaltete Personen sehen die Daten.</li>
 			<li>Die Importdatei wird beim Herunterladen erzeugt und nicht auf dem Server abgelegt.</li>
 			<li>Hochgeladene Dateien werden nach dem Einlesen nicht aufbewahrt, gespeichert werden nur die benötigten Spalten.</li>
+			<li>Aufbewahrt werden nur die letzten <?= (int) \Mh\UntisSchild\Repository\Import_Repository::BEHALTEN ?> Importe; ältere werden beim Hochladen gelöscht.</li>
+			<li>Wird das Plugin im Backend gelöscht, werden alle seine Tabellen und Einstellungen entfernt – Regeln vorher bei Bedarf als Text sichern
+				(Reiter Klassen bzw. Fächer → „Mehrere Regeln als Text einfügen oder kopieren“).</li>
 		</ul>
 	</section>
 

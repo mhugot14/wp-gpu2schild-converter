@@ -13,8 +13,8 @@ use wpdb;
  */
 class Import_Repository {
 
-	/** Ältere Importe werden beim Hochladen eines neuen entfernt. */
-	public const BEHALTEN = 5;
+	/** Ältere Importe werden beim Hochladen eines neuen entfernt (Datenminimierung). */
+	public const BEHALTEN = 3;
 
 	private string $t_importe;
 	private string $t_zeilen;
@@ -175,6 +175,22 @@ class Import_Repository {
 	public function delete( int $id ): void {
 		$this->db->delete( $this->t_zeilen, [ 'import_id' => $id ] );
 		$this->db->delete( $this->t_importe, [ 'id' => $id ] );
+	}
+
+	/**
+	 * Löscht Importe, die älter als die Aufbewahrungsfrist sind.
+	 *
+	 * @return int Anzahl gelöschter Importe
+	 */
+	public function loesche_aelter_als( int $tage ): int {
+		$ids = $this->db->get_col( $this->db->prepare(
+			"SELECT id FROM {$this->t_importe} WHERE erstellt_am < %s",
+			gmdate( 'Y-m-d H:i:s', current_time( 'timestamp' ) - $tage * DAY_IN_SECONDS )
+		) );
+		foreach ( $ids as $id ) {
+			$this->delete( (int) $id );
+		}
+		return count( $ids );
 	}
 
 	private function aufraeumen(): void {

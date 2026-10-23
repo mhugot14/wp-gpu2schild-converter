@@ -36,12 +36,30 @@ final class Converter_Service {
 		private Pipeline $pipeline,
 	) {}
 
-	public function geaendert(): void {
+	/**
+	 * Nach jeder Änderung: neuer Stand und veraltete Zwischenergebnisse sofort löschen – sie
+	 * enthalten Lehrkraft-Kürzel und sollen nicht bis zum Ablauf liegen bleiben (z. B. nach
+	 * dem Löschen eines Imports). Importe und Halbjahr werden vor der Änderung erfasst.
+	 *
+	 * @param object[] $importe_vorher Optional: Importe vor der Änderung (z. B. vor dem Löschen).
+	 */
+	public function geaendert( array $importe_vorher = [] ): void {
+		$alter_stand = (string) get_option( self::OPTION_STAND, '0' );
+		foreach ( array_merge( $importe_vorher, $this->imports->all() ) as $import ) {
+			foreach ( [ 1, 2 ] as $hj ) {
+				delete_transient( self::schluessel( (int) $import->id, $hj, $alter_stand ) );
+			}
+		}
+		$this->memo = [];
 		update_option( self::OPTION_STAND, (string) microtime( true ), false );
 	}
 
+	private static function schluessel( int $import_id, int $halbjahr, string $stand ): string {
+		return self::CACHE_PREFIX . md5( $import_id . '|' . $halbjahr . '|' . $stand );
+	}
+
 	public function ergebnis( object $import ): Pipeline_Ergebnis {
-		$key = self::CACHE_PREFIX . md5( $import->id . '|' . $import->halbjahr . '|' . get_option( self::OPTION_STAND, '0' ) );
+		$key = self::schluessel( (int) $import->id, (int) $import->halbjahr, (string) get_option( self::OPTION_STAND, '0' ) );
 		if ( isset( $this->memo[ $key ] ) ) {
 			return $this->memo[ $key ];
 		}

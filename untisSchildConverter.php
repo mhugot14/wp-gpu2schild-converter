@@ -3,7 +3,7 @@
  * Plugin Name: Untis2Schild Converter
  * Plugin URI: https://www.lebk-muenster.de
  * Description: Wandelt die GPU002 aus Untis in eine Schild-Importdatei für die klassenweise Fachzuordnung um – mit Klassen- und Fachregeln, Lehrkraft-Konflikten und nachvollziehbarem Protokoll.
- * Version: 1.0.0-dev
+ * Version: 1.0.0
  * Author: Michael Hugot
  * Author URI: https://berufsschulwissen.de
  * License: GPLv2
@@ -32,7 +32,7 @@ use Mh\UntisSchild\Setup\Plugin_Bootstrap;
 
 define( 'MH_USC_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'MH_USC_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
-define( 'MH_USC_VERSION', '1.0.0-dev' );
+define( 'MH_USC_VERSION', '1.0.0' );
 
 register_activation_hook( __FILE__, function () {
 	Activator::activate();

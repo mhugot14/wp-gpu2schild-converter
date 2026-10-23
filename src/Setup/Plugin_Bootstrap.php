@@ -10,6 +10,8 @@ use Mh\UntisSchild\Repository\Entscheidung_Repository;
 use Mh\UntisSchild\Repository\Fach_Regel_Repository;
 use Mh\UntisSchild\Repository\Import_Repository;
 use Mh\UntisSchild\Repository\Klassen_Regel_Repository;
+use Mh\UntisSchild\Repository\Protokoll_Repository;
+use Mh\UntisSchild\Service\Aufbewahrung;
 use Mh\UntisSchild\Repository\Schild_Fach_Repository;
 use Mh\UntisSchild\Repository\Status_Repository;
 use Mh\UntisSchild\Service\Converter_Service;
@@ -24,9 +26,6 @@ use Mh\UntisSchild\Service\Regel_Pruefer;
  * Verdrahtet Controller, Repositories und Services (manuell, ohne DI-Container) und
  * registriert die Hooks. Neue Abhängigkeiten hier instanziieren UND in der
  * Konstruktor-Signatur des Controllers ergänzen (Reihenfolge beachten).
- *
- * Übergang: Die alten Backend-Seiten aus includes/ bleiben nutzbar, bis das neue
- * Frontend freigegeben ist. Sie arbeiten weiter auf den Alttabellen.
  */
 class Plugin_Bootstrap {
 
@@ -44,6 +43,11 @@ class Plugin_Bootstrap {
 
 		$converter = new Converter_Service( $imports, $klassen_regeln, $fach_regeln, $entscheidungen, $schild_faecher, new Pipeline() );
 
+		$protokoll = new Protokoll_Repository( $wpdb );
+
+		// Täglicher Löschlauf (Speicherbegrenzung).
+		add_action( Aufbewahrung::CRON_HOOK, [ new Aufbewahrung( $imports, $protokoll ), 'ausfuehren' ] );
+
 		( new Converter_Controller(
 			$imports,
 			$klassen_regeln,
@@ -54,19 +58,11 @@ class Plugin_Bootstrap {
 			new Gpu_Parser(),
 			new Excel_Service(),
 			new Regel_Pruefer(),
+			$protokoll,
 		) )->register();
 
 		if ( is_admin() ) {
-			( new Admin_Controller( new Status_Repository( $wpdb ) ) )->register();
+			( new Admin_Controller( new Status_Repository( $wpdb ), $protokoll ) )->register();
 		}
-		$this->load_legacy_admin();
-	}
-
-	private function load_legacy_admin(): void {
-		if ( ! is_admin() ) {
-			return;
-		}
-		require_once MH_USC_PLUGIN_DIR . 'includes/Settings.php';
-		new \untisSchildConverter\Settings();
 	}
 }

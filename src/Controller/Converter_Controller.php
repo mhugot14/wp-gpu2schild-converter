@@ -13,6 +13,7 @@ use Mh\UntisSchild\Repository\Entscheidung_Repository;
 use Mh\UntisSchild\Repository\Fach_Regel_Repository;
 use Mh\UntisSchild\Repository\Import_Repository;
 use Mh\UntisSchild\Repository\Klassen_Regel_Repository;
+use Mh\UntisSchild\Repository\Protokoll_Repository;
 use Mh\UntisSchild\Repository\Schild_Fach_Repository;
 use Mh\UntisSchild\Service\Converter_Service;
 use Mh\UntisSchild\Service\Excel_Service;
@@ -72,10 +73,12 @@ class Converter_Controller {
 		private Gpu_Parser $parser,
 		private Excel_Service $excel,
 		private Regel_Pruefer $pruefer,
+		private Protokoll_Repository $protokoll,
 	) {}
 
 	public function register(): void {
 		add_shortcode( Plugin_Bootstrap::SHORTCODE, [ $this, 'render' ] );
+		add_action( 'template_redirect', [ $this, 'schuetze_seite' ] );
 		foreach ( self::AKTIONEN as $aktion => $methode ) {
 			// Nur admin_post_ (angemeldet), bewusst kein admin_post_nopriv_.
 			add_action( 'admin_post_' . $aktion, function () use ( $aktion, $methode ): void {
@@ -86,6 +89,30 @@ class Converter_Controller {
 				$this->$methode();
 			} );
 		}
+	}
+
+	/**
+	 * Seiten mit dem Shortcode zeigen personenbezogene Daten (Lehrkraft-Kürzel): Sie dürfen
+	 * weder von Cache-Plugins/Proxys zwischengespeichert (sonst sähen andere die Ansicht einer
+	 * berechtigten Person) noch von Suchmaschinen erfasst werden.
+	 */
+	public function schuetze_seite(): void {
+		$post = get_queried_object();
+		if ( ! $post instanceof \WP_Post || ! has_shortcode( (string) $post->post_content, Plugin_Bootstrap::SHORTCODE ) ) {
+			return;
+		}
+		nocache_headers();
+		header( 'Cache-Control: no-store, no-cache, must-revalidate, max-age=0, private' );
+		header( 'X-Robots-Tag: noindex, nofollow, noarchive' );
+		header( 'Referrer-Policy: same-origin' );
+		// Übliche Signale an Cache-Plugins (WP Super Cache, W3TC, WP Rocket, LiteSpeed …).
+		foreach ( [ 'DONOTCACHEPAGE', 'DONOTCACHEOBJECT', 'DONOTCACHEDB' ] as $konstante ) {
+			if ( ! defined( $konstante ) ) {
+				define( $konstante, true );
+			}
+		}
+		do_action( 'litespeed_control_set_nocache', 'Untis2Schild: personenbezogene Daten' );
+		add_filter( 'wp_robots', 'wp_robots_no_robots' );
 	}
 
 	// =========================================================================
@@ -328,12 +355,14 @@ class Converter_Controller {
 
 		try {
 			// Die Datei wird nur gelesen, nicht verschoben – PHP löscht sie nach der Anfrage.
-			$gpu = $this->parser->parse( (string) file_get_contents( $datei['tmp_name'] ) );
-			$this->imports->create( $gpu, $schuljahr, $halbjahr, sanitize_file_name( (string) $datei['name'] ), get_current_user_id() );
+			$gpu    = $this->parser->parse( (string) file_get_contents( $datei['tmp_name'] ) );
+			$vorher = $this->imports->all(); // create() löscht überzählige alte Importe
+			$id     = $this->imports->create( $gpu, $schuljahr, $halbjahr, sanitize_file_name( (string) $datei['name'] ), get_current_user_id() );
 		} catch ( Import_Fehler $e ) {
 			$this->zurueck( 'import', 'fehler', $e->getMessage() );
 		}
-		$this->converter->geaendert();
+		$this->converter->geaendert( $vorher );
+		$this->protokoll->log( 'import', sprintf( 'Import #%d: %d Zeilen, %s HJ %d', $id, count( $gpu->zeilen ), self::schuljahr_text( $schuljahr ), $halbjahr ) );
 
 		$this->zurueck( 'import', 'ok', sprintf( 'GPU002 eingelesen: %d Unterrichtszeilen%s.',
 			count( $gpu->zeilen ),
@@ -349,12 +378,16 @@ class Converter_Controller {
 		}
 		$this->imports->update_meta( $id, $schuljahr, $halbjahr );
 		$this->converter->geaendert();
+		$this->protokoll->log( 'import_geaendert', sprintf( 'Import #%d: %s HJ %d', $id, self::schuljahr_text( $schuljahr ), $halbjahr ) );
 		$this->zurueck( 'import', 'ok', sprintf( 'Import gilt jetzt für %s, %d. Halbjahr.', self::schuljahr_text( $schuljahr ), $halbjahr ) );
 	}
 
 	private function handle_import_loeschen(): void {
-		$this->imports->delete( absint( $_POST['id'] ?? 0 ) );
-		$this->converter->geaendert();
+		$id      = absint( $_POST['id'] ?? 0 );
+		$vorher  = $this->imports->all();
+		$this->imports->delete( $id );
+		$this->converter->geaendert( $vorher );
+		$this->protokoll->log( 'import_geloescht', sprintf( 'Import #%d', $id ) );
 		$this->zurueck( 'import', 'ok', 'Import gelöscht.' );
 	}
 
@@ -558,12 +591,16 @@ class Converter_Controller {
 			$gespeichert++;
 		}
 		$this->converter->geaendert();
+		if ( $gespeichert > 0 ) {
+			$this->protokoll->log( 'auswahl_gespeichert', sprintf( '%d Lehrkraft-Auswahlen', $gespeichert ) );
+		}
 		$this->zurueck( 'konflikte', 'ok', 0 === $gespeichert ? 'Keine Änderungen.' : sprintf( '%d Auswahl%s gespeichert.', $gespeichert, 1 === $gespeichert ? '' : 'en' ) );
 	}
 
 	private function handle_entscheidung_loeschen(): void {
 		$this->entscheidungen->delete( absint( $_POST['id'] ?? 0 ) );
 		$this->converter->geaendert();
+		$this->protokoll->log( 'auswahl_entfernt', 'eine Lehrkraft-Auswahl' );
 		$this->zurueck( 'konflikte', 'ok', 'Gespeicherte Auswahl entfernt – es gilt wieder die automatische Wahl.' );
 	}
 
@@ -589,6 +626,7 @@ class Converter_Controller {
 			'datei' => sanitize_file_name( (string) $datei['name'] ),
 		], false );
 		$this->converter->geaendert();
+		$this->protokoll->log( 'schildfaecher', sprintf( '%d Fächer', count( $faecher ) ) );
 		$this->zurueck( 'schildfaecher', 'ok', sprintf( '%d Schild-Fächer eingelesen.', count( $faecher ) ) );
 	}
 
@@ -604,6 +642,8 @@ class Converter_Controller {
 		if ( ! Excel_Service::verfuegbar() ) {
 			$this->zurueck( 'ergebnis', 'fehler', 'Die PHP-Erweiterung zip fehlt – es kann keine Excel-Datei erzeugt werden.' );
 		}
+		$this->protokoll->log( 'export', sprintf( 'Import #%d: %d Zeilen, %s HJ %d', (int) $import->id, count( $ergebnis->zeilen ),
+			self::schuljahr_text( (int) $import->schuljahr ), (int) $import->halbjahr ) );
 		$this->excel->sende_xlsx(
 			sprintf( 'schildimport_%d_HJ%d.xlsx', (int) $import->schuljahr, (int) $import->halbjahr ),
 			Schild_Export::KOPFZEILE,

@@ -98,7 +98,10 @@ final class Excel_Service {
 		}
 		$sheet->getStyle( 'A1:' . Coordinate::stringFromColumnIndex( count( $kopfzeile ) ) . '1' )->getFont()->setBold( true );
 
+		// Enthält Lehrkraft-Kürzel: nicht zwischenspeichern (Browser, Proxy).
 		nocache_headers();
+		header( 'Cache-Control: no-store, no-cache, must-revalidate, max-age=0, private' );
+		header( 'X-Content-Type-Options: nosniff' );
 		header( 'Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' );
 		header( 'Content-Disposition: attachment; filename="' . rawurlencode( $dateiname ) . '"' );
 		( new Xlsx( $book ) )->save( 'php://output' );

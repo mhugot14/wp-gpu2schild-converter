@@ -9,31 +9,101 @@ use wpdb;
 /**
  * Class Activator
  *
- * Legt die Tabellen an (dbDelta) und übernimmt einmalig die Regeln aus den Alttabellen
- * usc_loesch_klassen / usc_loesch_faecher. Die Alttabellen bleiben bestehen, bis das neue
- * Frontend sie abgelöst hat.
+ * Legt die Tabellen an (dbDelta), übernimmt einmalig die Regeln der Vorversion (0.9.x) und
+ * räumt deren Reste weg: Alttabellen und die Exportdateien, die die Vorversion ungeschützt
+ * nach wp-admin/ geschrieben hat.
+ *
+ * DB_VERSION: 1 = neue Tabellen + Regelübernahme, 2 = Alttabellen/-dateien entfernt + Protokoll.
  */
 class Activator {
 
-	public const DB_VERSION         = '1';
-	public const OPTION_DB_VERSION  = 'mh_usc_db_version';
-	public const OPTION_MIGRATION   = 'mh_usc_migration';
+	public const DB_VERSION          = '2';
+	public const OPTION_DB_VERSION   = 'mh_usc_db_version';
+	public const OPTION_MIGRATION    = 'mh_usc_migration';
+	/** Die Regeln der Vorversion als Text, bevor die Alttabellen gelöscht wurden. */
+	public const OPTION_ALT_SICHERUNG = 'mh_usc_altregeln_sicherung';
+	/** Was beim Aufräumen der Vorversion entfernt wurde (für die Statusseite). */
+	public const OPTION_AUFGERAEUMT  = 'mh_usc_altversion_entfernt';
 
 	/** Cron-Hook der Altversion – wurde geplant, aber nie verarbeitet. */
 	private const LEGACY_CRON_HOOK = 'untisSchildConverter/weekly_cron';
+
+	/** Tabellen der Vorversion. usc_schildimport enthielt die komplette Unterrichtsverteilung mit Lehrkräften. */
+	private const LEGACY_TABELLEN = [ 'usc_loesch_klassen', 'usc_loesch_faecher', 'usc_schildimport' ];
+
+	/**
+	 * Dateien, die die Vorversion in das Arbeitsverzeichnis von wp-admin geschrieben hat –
+	 * ohne Zugriffsschutz und mit allen Lehrkraft-Kürzeln.
+	 */
+	private const LEGACY_DATEIEN = [ 'schildimport.csv', 'schildimport.xlsx', 'hello world.xlsx' ];
 
 	public static function activate(): void {
 		global $wpdb;
 
 		self::create_tables( $wpdb );
 		self::migrate_legacy_rules( $wpdb );
+		self::remove_legacy( $wpdb );
 		wp_clear_scheduled_hook( self::LEGACY_CRON_HOOK );
+		\Mh\UntisSchild\Service\Aufbewahrung::planen();
 
 		update_option( self::OPTION_DB_VERSION, self::DB_VERSION );
 	}
 
 	public static function deactivate(): void {
 		wp_clear_scheduled_hook( self::LEGACY_CRON_HOOK );
+		\Mh\UntisSchild\Service\Aufbewahrung::abbestellen();
+	}
+
+	/**
+	 * Entfernt Alttabellen und Altdateien der Vorversion.
+	 *
+	 * Sicherheitsnetz: Gibt es in den Alttabellen Regeln, die nie übernommen wurden, bleibt
+	 * alles stehen. Die Regeln werden vorher als Text in einer Option gesichert.
+	 */
+	private static function remove_legacy( wpdb $wpdb ): void {
+		$p        = $wpdb->prefix;
+		$bericht  = [ 'datum' => current_time( 'mysql' ), 'tabellen' => [], 'dateien' => [] ];
+		$sicherung = [];
+
+		foreach ( [ 'klassen' => "{$p}usc_loesch_klassen", 'faecher' => "{$p}usc_loesch_faecher" ] as $art => $tabelle ) {
+			if ( ! self::table_exists( $wpdb, $tabelle ) ) {
+				continue;
+			}
+			$anzahl = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$tabelle}" );
+			if ( $anzahl > 0 && false === get_option( self::OPTION_MIGRATION ) ) {
+				return; // nie übernommen – nichts löschen
+			}
+			$zeilen = 'klassen' === $art
+				? $wpdb->get_results( "SELECT klasse_untis AS a, klasse_schild AS b, '' AS c, bemerkung AS d FROM {$tabelle} ORDER BY id", ARRAY_A )
+				: $wpdb->get_results( "SELECT fach_untis AS a, fach_schild AS b, klasse AS c, bemerkung AS d FROM {$tabelle} ORDER BY id", ARRAY_A );
+			$sicherung[ $art ] = implode( "\n", array_map( static function ( array $z ) use ( $art ): string {
+				$felder = 'klassen' === $art ? [ $z['a'], $z['b'], $z['d'] ] : [ $z['a'], $z['b'], $z['c'], $z['d'] ];
+				return implode( ' ; ', array_map( static fn( $f ) => trim( (string) $f ), $felder ) );
+			}, $zeilen ) );
+		}
+		if ( array_filter( $sicherung ) ) {
+			add_option( self::OPTION_ALT_SICHERUNG, [ 'datum' => current_time( 'mysql' ) ] + $sicherung, '', false );
+		}
+
+		foreach ( self::LEGACY_TABELLEN as $t ) {
+			if ( self::table_exists( $wpdb, $p . $t ) ) {
+				$wpdb->query( "DROP TABLE {$p}{$t}" );
+				$bericht['tabellen'][] = $t;
+			}
+		}
+
+		foreach ( self::LEGACY_DATEIEN as $datei ) {
+			$pfad = ABSPATH . 'wp-admin/' . $datei;
+			if ( is_file( $pfad ) && @unlink( $pfad ) ) {
+				$bericht['dateien'][] = 'wp-admin/' . $datei;
+			} elseif ( is_file( $pfad ) ) {
+				$bericht['nicht_geloescht'][] = 'wp-admin/' . $datei;
+			}
+		}
+
+		if ( $bericht['tabellen'] || $bericht['dateien'] || ! empty( $bericht['nicht_geloescht'] ) ) {
+			update_option( self::OPTION_AUFGERAEUMT, $bericht, false );
+		}
 	}
 
 	private static function create_tables( wpdb $wpdb ): void {
@@ -108,6 +178,18 @@ class Activator {
 			entschieden_am datetime NOT NULL,
 			PRIMARY KEY  (id),
 			UNIQUE KEY klasse_fach (klasse,fach)
+		) $charset;" );
+
+		// Zugriffsprotokoll: wer hat wann importiert, exportiert, entschieden … – nur technische
+		// Angaben (Anzahlen), keine Lehrkraft-Kürzel oder Inhalte.
+		dbDelta( "CREATE TABLE {$p}usc_protokoll (
+			id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+			user_id bigint(20) unsigned NOT NULL DEFAULT 0,
+			aktion varchar(40) NOT NULL,
+			detail varchar(255) NOT NULL DEFAULT '',
+			zeit datetime NOT NULL,
+			PRIMARY KEY  (id),
+			KEY zeit (zeit)
 		) $charset;" );
 
 		// Besteht schon aus der Altversion; Struktur unverändert.

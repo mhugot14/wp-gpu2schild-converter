@@ -4,8 +4,11 @@ declare(strict_types=1);
 
 namespace Mh\UntisSchild\Controller;
 
+use Mh\UntisSchild\Repository\Import_Repository;
+use Mh\UntisSchild\Repository\Protokoll_Repository;
 use Mh\UntisSchild\Repository\Status_Repository;
 use Mh\UntisSchild\Setup\Activator;
+use Mh\UntisSchild\Service\Aufbewahrung;
 use Mh\UntisSchild\Service\Zugriff;
 use Mh\UntisSchild\Setup\Plugin_Bootstrap;
 
@@ -17,7 +20,7 @@ use Mh\UntisSchild\Setup\Plugin_Bootstrap;
  */
 class Admin_Controller {
 
-	/** Slug der Altversion – deren Unterseiten hängen bis zur Ablösung weiter darunter. */
+	/** Slug aus der Vorversion beibehalten, damit Lesezeichen auf die Übersicht weiter funktionieren. */
 	public const MENU_SLUG  = 'mh_u2s_main-menu';
 	public const CAPABILITY = 'manage_options';
 
@@ -28,11 +31,12 @@ class Admin_Controller {
 
 	public function __construct(
 		private Status_Repository $status_repo,
+		private Protokoll_Repository $protokoll,
 	) {}
 
 	public function register(): void {
-		// Priorität 9: Das Hauptmenü muss stehen, bevor die Altversion (10) ihre Unterseiten anhängt.
-		add_action( 'admin_menu', [ $this, 'register_menu' ], 9 );
+		add_action( 'admin_menu', [ $this, 'register_menu' ] );
+		add_action( 'admin_init', [ $this, 'datenschutzerklaerung' ] );
 		add_action( 'admin_post_' . self::ACTION_CREATE_PAGE, [ $this, 'handle_create_page' ] );
 		add_action( 'admin_post_' . self::ACTION_FREIGABEN, [ $this, 'handle_freigaben' ] );
 	}
@@ -40,20 +44,41 @@ class Admin_Controller {
 	public function register_menu(): void {
 		add_menu_page( 'Untis2Schild Converter', 'Untis2Schild', self::CAPABILITY, self::MENU_SLUG, [ $this, 'render_start' ], 'dashicons-migrate', 30 );
 		add_submenu_page( self::MENU_SLUG, 'Untis2Schild – Übersicht', 'Übersicht', self::CAPABILITY, self::MENU_SLUG, [ $this, 'render_start' ] );
-		add_submenu_page( self::MENU_SLUG, 'Untis2Schild – Freigaben', 'Freigaben', self::CAPABILITY, self::FREIGABEN_SLUG, [ $this, 'render_freigaben' ] );
+		add_submenu_page( self::MENU_SLUG, 'Untis2Schild – Freigaben & Datenschutz', 'Freigaben & Datenschutz', self::CAPABILITY, self::FREIGABEN_SLUG, [ $this, 'render_freigaben' ] );
 	}
 
 	/**
-	 * Wer darf den Converter im Frontend benutzen?
+	 * Textvorschlag für die Datenschutzerklärung (Einstellungen → Datenschutz → Leitfaden).
+	 */
+	public function datenschutzerklaerung(): void {
+		if ( ! function_exists( 'wp_add_privacy_policy_content' ) ) {
+			return;
+		}
+		wp_add_privacy_policy_content( 'Untis2Schild Converter', wp_kses_post(
+			'<p>Zur Übertragung der Unterrichtsverteilung aus Untis nach SchILD-NRW verarbeiten berechtigte Personen der Schulverwaltung '
+			. 'die Unterrichtsdatei aus Untis (GPU002). Sie enthält zu jedem Unterricht Klasse, Fach, Wochenstunden und das Kürzel der '
+			. 'Lehrkraft. Gespeichert werden nur diese Angaben; die hochgeladene Datei selbst wird nicht aufbewahrt. Zugriff haben '
+			. 'ausschließlich Administratorinnen und Administratoren sowie ausdrücklich freigeschaltete Personen. Gespeichert werden höchstens '
+			. 'die letzten ' . Import_Repository::BEHALTEN . ' Importe, jeder Import wird spätestens nach ' . Aufbewahrung::tage() . ' Tagen gelöscht. '
+			. 'Ausgelöste Aktionen (Import, Export, Auswahl von Lehrkräften) werden ohne Inhalte protokolliert und nach '
+			. Aufbewahrung::PROTOKOLL_TAGE . ' Tagen gelöscht.</p>'
+		) );
+	}
+
+	/**
+	 * Wer darf den Converter im Frontend benutzen? Wie lange werden Importe aufbewahrt?
 	 */
 	public function render_freigaben(): void {
 		if ( ! current_user_can( self::CAPABILITY ) ) {
 			return;
 		}
-		$benutzer     = get_users( [ 'orderby' => 'display_name', 'fields' => [ 'ID', 'display_name', 'user_email' ] ] );
-		$freigegeben  = Zugriff::freigegeben();
-		$gespeichert  = isset( $_GET['gespeichert'] );
-		$aktion       = self::ACTION_FREIGABEN;
+		$benutzer      = get_users( [ 'orderby' => 'display_name', 'fields' => [ 'ID', 'display_name', 'user_email' ] ] );
+		$freigegeben   = Zugriff::freigegeben();
+		$gespeichert   = isset( $_GET['gespeichert'] );
+		$aktion        = self::ACTION_FREIGABEN;
+		$tage          = Aufbewahrung::tage();
+		$protokoll     = $this->protokoll->neueste( 100 );
+		$alt_sicherung = get_option( Activator::OPTION_ALT_SICHERUNG );
 		include MH_USC_PLUGIN_DIR . 'templates/admin-freigaben.php';
 	}
 
@@ -62,7 +87,10 @@ class Admin_Controller {
 			wp_die( 'Keine Berechtigung.', 403 );
 		}
 		check_admin_referer( self::ACTION_FREIGABEN );
-		Zugriff::speichern( array_map( 'absint', (array) ( $_POST['user_ids'] ?? [] ) ) );
+		$ids = array_map( 'absint', (array) ( $_POST['user_ids'] ?? [] ) );
+		Zugriff::speichern( $ids );
+		Aufbewahrung::tage_speichern( absint( $_POST['aufbewahrung_tage'] ?? Aufbewahrung::STANDARD_TAGE ) );
+		$this->protokoll->log( 'einstellungen', sprintf( '%d Personen freigegeben, Aufbewahrung %d Tage', count( array_filter( $ids ) ), Aufbewahrung::tage() ) );
 		wp_safe_redirect( admin_url( 'admin.php?page=' . self::FREIGABEN_SLUG . '&gespeichert=1' ) );
 		exit;
 	}
@@ -78,12 +106,6 @@ class Admin_Controller {
 		$checks          = $this->checks( $counts, $frontend_aktiv, $seiten );
 		$create_page_url = wp_nonce_url( admin_url( 'admin-post.php?action=' . self::ACTION_CREATE_PAGE ), self::ACTION_CREATE_PAGE );
 		$fehler          = sanitize_key( wp_unslash( $_GET['usc_fehler'] ?? '' ) );
-		$legacy_links    = [
-			'GPU002 Uploads'     => admin_url( 'admin.php?page=mh_u2s_uploads' ),
-			'Klassenänderungen'  => admin_url( 'admin.php?page=mh_u2s_klassen' ),
-			'Fächeränderungen'   => admin_url( 'admin.php?page=mh_u2s_faecher' ),
-			'SchildNRW-Fächer'   => admin_url( 'admin.php?page=mh_u2s_schildfaecher' ),
-		];
 
 		include MH_USC_PLUGIN_DIR . 'templates/admin-start.php';
 	}
@@ -152,8 +174,7 @@ class Admin_Controller {
 				'hint' => 'Ohne Fächerliste kann nicht geprüft werden, ob Schild alle Fächer der Importdatei kennt.' ];
 
 		if ( ! $frontend_aktiv ) {
-			$checks[] = [ 'status' => 'warn', 'label' => 'Frontend', 'text' => 'Der Shortcode ist in dieser Version noch nicht verfügbar – das Frontend ist in Arbeit.',
-				'hint' => 'Bis dahin funktionieren die bisherigen Seiten im Menü links.' ];
+			$checks[] = [ 'status' => 'error', 'label' => 'Frontend', 'text' => 'Der Shortcode ist nicht registriert.', 'hint' => 'Plugin deaktivieren und wieder aktivieren.' ];
 		} elseif ( [] === $seiten ) {
 			$checks[] = [ 'status' => 'warn', 'label' => 'Frontend', 'text' => 'Der Shortcode ist noch auf keiner Seite eingebunden.', 'hint' => 'Siehe Abschnitt „Einbinden“.' ];
 		} else {
@@ -166,8 +187,53 @@ class Admin_Controller {
 			'text'   => $counts['importe'] > 0
 				? sprintf( '%d GPU002-Importe, zuletzt am %s.', $counts['importe'], mysql2date( 'd.m.Y \u\m H:i', (string) $counts['letzter_import'] ) )
 				: 'Noch keine GPU002 mit der neuen Version importiert.',
+			'hint'   => sprintf( 'Es werden höchstens %d Importe aufbewahrt, jeder höchstens %d Tage.', Import_Repository::BEHALTEN, Aufbewahrung::tage() ),
 		];
 
+		array_push( $checks, ...$this->datenschutz_checks( $seiten ) );
+		return $checks;
+	}
+
+	/**
+	 * Datenschutz: Reste der Vorversion, Löschfristen, Freigaben, öffentlich erreichbare Seiten.
+	 *
+	 * @param array<int, object> $seiten
+	 * @return array<int, array{status:string, label:string, text:string, hint?:string}>
+	 */
+	private function datenschutz_checks( array $seiten ): array {
+		$checks = [];
+
+		// Die Vorversion schrieb Exportdateien mit allen Lehrkraft-Kürzeln ungeschützt nach wp-admin/.
+		$offen = array_values( array_filter( [ 'schildimport.csv', 'schildimport.xlsx' ], static fn( $d ) => is_file( ABSPATH . 'wp-admin/' . $d ) ) );
+		$aufgeraeumt = get_option( Activator::OPTION_AUFGERAEUMT );
+		if ( [] !== $offen ) {
+			$checks[] = [ 'status' => 'error', 'label' => 'Altdateien', 'text' => 'Öffentlich abrufbar mit Lehrkraft-Kürzeln: wp-admin/' . implode( ', wp-admin/', $offen ),
+				'hint' => 'Die Vorversion hat diese Dateien angelegt. Bitte sofort per FTP/Dateimanager löschen – das Plugin konnte es nicht (Schreibrechte).' ];
+		} elseif ( is_array( $aufgeraeumt ) ) {
+			$teile = [];
+			if ( $aufgeraeumt['tabellen'] ) {
+				$teile[] = count( $aufgeraeumt['tabellen'] ) . ' Alttabellen';
+			}
+			if ( $aufgeraeumt['dateien'] ) {
+				$teile[] = 'öffentliche Exportdateien (' . implode( ', ', $aufgeraeumt['dateien'] ) . ')';
+			}
+			$checks[] = [ 'status' => 'ok', 'label' => 'Vorversion', 'text' => 'Reste der Vorversion entfernt am ' . mysql2date( 'd.m.Y', (string) $aufgeraeumt['datum'] ) . ': ' . implode( ', ', $teile ) . '.',
+				'hint' => get_option( Activator::OPTION_ALT_SICHERUNG ) ? 'Die alten Regeln sind als Text gesichert (Freigaben & Datenschutz).' : '' ];
+		}
+
+		$checks[] = wp_next_scheduled( Aufbewahrung::CRON_HOOK )
+			? [ 'status' => 'ok', 'label' => 'Löschfristen', 'text' => sprintf( 'Täglicher Lauf geplant: Importe nach %d Tagen, Protokoll nach %d Tagen.', Aufbewahrung::tage(), Aufbewahrung::PROTOKOLL_TAGE ) ]
+			: [ 'status' => 'error', 'label' => 'Löschfristen', 'text' => 'Der tägliche Löschlauf ist nicht geplant.', 'hint' => 'Plugin deaktivieren und wieder aktivieren.' ];
+
+		$frei     = count( Zugriff::freigegeben() );
+		$checks[] = [ 'status' => 'info', 'label' => 'Zugriff', 'text' => sprintf( 'Administrator*innen und %d freigegebene %s.', $frei, 1 === $frei ? 'Person' : 'Personen' ),
+			'hint' => 'Freigaben regelmäßig prüfen – z. B. wenn jemand die Verwaltung verlässt.' ];
+
+		// Nicht auf „privat“ stellen: Private Seiten sehen nur Redakteure/Admins – Freigegebene mit
+		// einfacher Rolle wären ausgesperrt. Der Schutz liegt im Shortcode selbst.
+		if ( [] !== $seiten ) {
+			$checks[] = [ 'status' => 'ok', 'label' => 'Seitenschutz', 'text' => 'Daten sieht nur, wer angemeldet und freigegeben ist. Die Seite wird nicht zwischengespeichert und ist für Suchmaschinen gesperrt.' ];
+		}
 		return $checks;
 	}
 }

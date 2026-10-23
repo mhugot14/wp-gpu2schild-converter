@@ -8,6 +8,8 @@ Konflikte, Abgleich mit der Schild-Fächerliste. Bedienung im Frontend über den
 `[mh_untis_schild]` für Administrator*innen und ausgewählte Benutzer.
 
 Planung, Entscheidungen und Stand des Refactorings: `docs/refactoring-plan.md`.
+Datenschutzkonzept (Daten, Fristen, Maßnahmen, offene Punkte der Schule): `docs/datenschutz.md`.
+Keine Verbindung zu mh_form_workflows – beide Plugins bleiben unabhängig.
 
 ## Konventionen (wie mh_form_workflows)
 
@@ -19,13 +21,16 @@ Planung, Entscheidungen und Stand des Refactorings: `docs/refactoring-plan.md`.
 - Kommentare und Nutzertexte auf Deutsch.
 - Sicherheit: Nonce + Zugriffsprüfung in jedem POST-/Download-Handler, Ausgaben escapen,
   keine Exportdateien auf dem Server ablegen.
+- Neue Aktionen auf Lehrkraftdaten mit `Protokoll_Repository::log()` protokollieren – im Detail
+  nur technische Angaben (Anzahlen), nie Kürzel. Neue Tabellen in `uninstall.php` ergänzen,
+  Schemaänderungen über `Activator::DB_VERSION`.
 
 ## Datenschutz — verbindlich
 
 Die GPU002 und die Importtabellen enthalten Lehrerkürzel und Unterrichtsverteilung.
 
 - Keine echten GPU002-/XLSX-Dateien öffnen (auch nicht in `uploads/`), keine Zeileninhalte aus
-  `usc_import_zeilen`, `usc_lehrkraft_entscheidungen` oder den Alttabellen ausgeben.
+  `usc_import_zeilen`, `usc_lehrkraft_entscheidungen` oder Zwischenspeichern (Transients `mh_usc_erg_*`) ausgeben.
   Schema, Spaltennamen und `COUNT(*)` sind in Ordnung.
 - Tests und Beispiele nur mit erfundenen oder pseudonymisierten Daten.
 - Integrationstests, die schreiben, nie gegen die echten Tabellen: Michael testet parallel im

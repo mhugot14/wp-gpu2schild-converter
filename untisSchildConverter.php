@@ -1,50 +1,56 @@
 <?php
-
-/* 
- * To change this license header, choose License Headers in Project Properties.
- * To change this template file, choose Tools | Templates
- * and open the template in the editor.
+/**
+ * Plugin Name: Untis2Schild Converter
+ * Plugin URI: https://www.lebk-muenster.de
+ * Description: Wandelt die GPU002 aus Untis in eine Schild-Importdatei für die klassenweise Fachzuordnung um – mit Klassen- und Fachregeln, Lehrkraft-Konflikten und nachvollziehbarem Protokoll.
+ * Version: 1.0.0-dev
+ * Author: Michael Hugot
+ * Author URI: https://berufsschulwissen.de
+ * License: GPLv2
+ * Text Domain: untis-schild
+ * Requires PHP: 8.1
  */
 
+declare(strict_types=1);
 
-/*
-Plugin Name: Untis2Schild Converter
-Plugin URI: www.lebk-muenster.de
-Description: Das Plugin konvertiert die GPU002 aus UNTIS in eine importfähige Datei für Schild.
- * Dabei begleitet dich das Plugin, um die Datei entsprechend zu konfiguieren (Unterricht löschen, aufteilen, hinzufügen).
-Version: v0.9.2 
-Author: Michael Hugot
-Author URI: Berufsschulwissen.de
-License: GPLv2
-*/
-
-namespace untisSchildConverter;
-
-// Sicherheit: Direktzugriff verhindern
-if (!defined('ABSPATH')) {
-    exit; 
+// Abbrechen, wenn direkt aufgerufen.
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
 }
 
-// Composer-Autoload einmalig einbinden
-$autoload = plugin_dir_path(__FILE__) . 'vendor/autoload.php';
-if (file_exists($autoload)) {
-    require_once $autoload;
-} else {
-    error_log('Untis2Schild Converter: vendor/autoload.php nicht gefunden – bitte "composer install" im Plugin-Ordner ausführen.');
+if ( ! file_exists( __DIR__ . '/vendor/autoload.php' ) ) {
+	add_action( 'admin_notices', function (): void {
+		echo '<div class="notice notice-error"><p><strong>Untis2Schild Converter:</strong> '
+			. 'vendor/autoload.php fehlt – bitte im Plugin-Ordner <code>composer install</code> ausführen.</p></div>';
+	} );
+	return;
 }
+require_once __DIR__ . '/vendor/autoload.php';
 
-//Plugin Aktivierung
-define('MH_uSC_FILE',__FILE__);
-//Includes
-require_once __DIR__ . '/includes/Plugin_Helpers.php';
-require_once __DIR__ . '/includes/Settings.php';
+use Mh\UntisSchild\Setup\Activator;
+use Mh\UntisSchild\Setup\Plugin_Bootstrap;
 
-//Die Funktion wird aufgerufen bei der Aktivierung des Plugins im Backend
-register_activation_hook(
-		MH_uSC_FILE, 
-		['untisSchildConverter\Plugin_Helpers' ,'activate']
-		);
+define( 'MH_USC_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
+define( 'MH_USC_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
+define( 'MH_USC_VERSION', '1.0.0-dev' );
 
+register_activation_hook( __FILE__, function () {
+	Activator::activate();
+} );
 
-new Settings();
+register_deactivation_hook( __FILE__, function () {
+	Activator::deactivate();
+} );
 
+/**
+ * Schema-Migrationen auch ohne Reaktivieren ausführen (z. B. nach einem Update per ZIP).
+ */
+add_action( 'plugins_loaded', function () {
+	if ( get_option( Activator::OPTION_DB_VERSION ) !== Activator::DB_VERSION ) {
+		Activator::activate();
+	}
+}, 5 );
+
+add_action( 'plugins_loaded', function () {
+	( new Plugin_Bootstrap() )->init();
+} );

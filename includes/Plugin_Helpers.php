@@ -102,5 +102,3 @@ class Plugin_Helpers{
 	}
 	
 }
-
-?>

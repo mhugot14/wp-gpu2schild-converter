@@ -1,7 +1,26 @@
 {
-    "name": "mhugot/wp-gpu2schild-converter",
-    "type":"wordpress-plugin",
-    "require":{
-        "phpoffice/phpspreadsheet":"^1.17"
+    "name": "mh/untis-schild-converter",
+    "description": "Wandelt die GPU002 aus Untis in eine Schild-Importdatei für die klassenweise Fachzuordnung um.",
+    "type": "wordpress-plugin",
+    "license": "GPL-2.0-or-later",
+    "authors": [
+        {
+            "name": "Michael Hugot"
+        }
+    ],
+    "require": {
+        "php": ">=8.1",
+        "phpoffice/phpspreadsheet": "^1.29"
+    },
+    "autoload": {
+        "psr-4": {
+            "Mh\\UntisSchild\\": "src/"
+        }
+    },
+    "config": {
+        "optimize-autoloader": true
+    },
+    "scripts": {
+        "test": "php tests/run.php"
     }
 }

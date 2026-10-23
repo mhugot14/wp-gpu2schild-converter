@@ -25,13 +25,7 @@ class Settings{
 		$this->myPluginHelpers = new Plugin_Helpers;
 	}
 	public function create_menu(){
-		add_menu_page('Untis Schild Converter',
-					 'Untis2Schild',
-					 'manage_options', 
-					 'mh_u2s_main-menu', 
-					 [$this, 'render_Untis2Schild_page'],
-					'dashicons-migrate',30);
-		
+		// Das Hauptmenü 'mh_u2s_main-menu' legt jetzt Mh\UntisSchild\Controller\Admin_Controller an.
 		$hook_suffix=add_submenu_page(
 					'mh_u2s_main-menu',
 					'GPU002 Upload Page',
@@ -644,4 +638,3 @@ function render_schildfaecher(){
 	}
 	
 }
-	

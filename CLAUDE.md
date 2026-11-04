@@ -11,6 +11,16 @@ Planung, Entscheidungen und Stand des Refactorings: `docs/refactoring-plan.md`.
 Datenschutzkonzept (Daten, Fristen, Maßnahmen, offene Punkte der Schule): `docs/datenschutz.md`.
 Keine Verbindung zu mh_form_workflows – beide Plugins bleiben unabhängig.
 
+**WebUntis-Abgleich** (Reiter `webuntis`, ab 1.1.0): optional über die Filter des Plugins
+webuntisAnalyser (`wa_webuntis_klassen`, `wa_unterricht_stunden`) – ohne das Plugin erscheint
+nur ein Hinweis. Der Analyser liefert unübersetzte Stunden je Untis-Fach und Kürzel; der
+Converter schickt sie in `Service\Webuntis_Abgleich` durch seine eigene Pipeline (alle Regeln,
+ohne gespeicherte Entscheidungen) und vergleicht mit dem Ergebnis. Datenstand in
+`usc_webuntis_stand` (eine Zeile je Untis-Klasse, Aktualisieren per AJAX `usc_wu_*` Klasse für
+Klasse), Aufbewahrung wie die Importe. Der Reiter „Konflikte“ zeigt daraus Hinweise mit
+„übernehmen“. Der Export kann auf ausgewählte Klassen beschränkt werden (`umfang=auswahl`,
+`klassen[]`; gesperrt nur bei offenen Konflikten in diesen Klassen).
+
 ## Konventionen (wie mh_form_workflows)
 
 - Namespace `Mh\UntisSchild\` → `src/` (PSR-4 via Composer), Hauptdatei ohne Namespace.

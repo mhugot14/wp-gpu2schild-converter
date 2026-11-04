@@ -6,7 +6,16 @@ Stand: 2026-10-23. Punkte, die die Schule entscheiden muss, sind mit **[festzule
 
 Übertragung der klassenweisen Unterrichtsverteilung aus Untis nach SchILD-NRW, damit alle
 Schülerinnen und Schüler einer Klasse ihre Fächer und Fachlehrkräfte erhalten. Keine weitere
-Auswertung (keine Statistik über Lehrkräfte, kein Abgleich mit anderen Systemen).
+Auswertung (keine Statistik über Lehrkräfte).
+
+**Ab Version 1.1.0: Abgleich mit WebUntis** (Reiter „WebUntis-Abgleich“, nur wenn das Plugin
+WebUntis Analyser aktiv ist). Zweck ist allein die Richtigkeit der Übertragung nach Schild
+(Art. 5 Abs. 1 lit. d DSGVO): Je Klasse und Fach wird die Lehrkraft aus der GPU002 mit der
+Lehrkraft verglichen, die laut WebUntis-Stundenplan die meisten gehaltenen Stunden hat –
+sichtbar werden veraltete Zuordnungen, fehlende Fächer und Hinweise für Konflikte. Keine
+Auswertung einzelner Lehrkräfte (Ausfall, Vertretungen) und keine Anzeige außerhalb des
+Converters. Ob dieser Zusatzzweck vom bisherigen Zweck gedeckt ist bzw. im Verzeichnis von
+Verarbeitungstätigkeiten ergänzt werden muss: [festzulegen].
 
 ## 2. Verarbeitete Daten
 
@@ -14,6 +23,7 @@ Auswertung (keine Statistik über Lehrkräfte, kein Abgleich mit anderen Systeme
 |---|---|---|---|
 | Lehrkraft-Kürzel, Klasse, Fach, Wochenstunden (Klasse/Lehrkraft), Unterrichtsnummer, Gruppe | Lehrkräfte (Beschäftigtendaten) | GPU002 aus Untis | `usc_import_zeilen` |
 | Gemerkte Auswahl „Klasse + Fach → Lehrkraft“ | Lehrkräfte | Eingabe im Reiter „Konflikte“ | `usc_lehrkraft_entscheidungen` |
+| WebUntis-Datenstand: je Klasse Stunden je Untis-Fach und Lehrkraft-Kürzel (gesamt und letzte 14 Tage), Abrufzeit | Lehrkräfte | WebUntis über das Plugin WebUntis Analyser, nur auf Knopfdruck | `usc_webuntis_stand` |
 | WordPress-Benutzer-ID der handelnden Person, Aktion, Zeit | Nutzer*innen des Converters | automatisch | `usc_protokoll`, `erstellt_von`/`geaendert_von` |
 | Klassen- und Fachregeln, Schild-Fächerliste | – (keine Personendaten) | Eingabe / Schild-Export | `usc_*_regeln`, `usc_schildfaecher` |
 
@@ -50,6 +60,10 @@ nach § 18 DSG NRW. Eintrag im Verzeichnis von Verarbeitungstätigkeiten: [festz
 - Höchstens 3 Importe; jeder wird nach einer einstellbaren Frist gelöscht (Standard 365 Tage,
   täglicher Lauf). Frist: [festzulegen, Vorschlag 365 Tage].
 - Zugriffsprotokoll: 365 Tage.
+- WebUntis-Datenstand: eine Zeile je Klasse, beim Aktualisieren ersetzt (nicht angehäuft);
+  gespeichert werden nur Stundensummen, kein Stundenplan, keine Vertretungs- oder
+  Ausfalldaten einzelner Tage. Gelöscht nach derselben Frist wie die Importe, Klassen ohne
+  WebUntis-Entsprechung beim nächsten vollständigen Aktualisieren.
 - Zwischengespeicherte Ergebnisse (enthalten Kürzel) werden bei jeder Änderung sofort gelöscht,
   spätestens nach einer Stunde.
 - Gemerkte Lehrkraft-Auswahlen bleiben, bis sie im Reiter „Konflikte“ entfernt werden – sie
@@ -58,8 +72,9 @@ nach § 18 DSG NRW. Eintrag im Verzeichnis von Verarbeitungstätigkeiten: [festz
   Einstellungen und Zwischenspeicher.
 
 **Rechenschaft**
-- Zugriffsprotokoll für Import, Export, Lehrkraft-Auswahl, Schild-Fächerliste und Einstellungen;
-  nur technische Angaben (Anzahlen), keine Kürzel oder Inhalte.
+- Zugriffsprotokoll für Import, Export (auch Teilexport einzelner Klassen), Lehrkraft-Auswahl,
+  Schild-Fächerliste, Aktualisieren des WebUntis-Datenstands und Einstellungen; nur technische
+  Angaben (Anzahlen), keine Kürzel oder Inhalte.
 - Textvorschlag für die Datenschutzerklärung unter Einstellungen → Datenschutz.
 
 ## 4. Altlasten der Vorversion 0.9.x

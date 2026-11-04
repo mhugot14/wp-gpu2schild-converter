@@ -6,10 +6,12 @@ namespace Mh\UntisSchild\Service;
 
 use Mh\UntisSchild\Repository\Import_Repository;
 use Mh\UntisSchild\Repository\Protokoll_Repository;
+use Mh\UntisSchild\Repository\Webuntis_Stand_Repository;
 
 /**
- * Speicherbegrenzung (Art. 5 Abs. 1 lit. e DSGVO): Ein täglicher Cron löscht Importe nach
- * Ablauf der eingestellten Frist und Protokolleinträge nach einem Jahr.
+ * Speicherbegrenzung (Art. 5 Abs. 1 lit. e DSGVO): Ein täglicher Cron löscht Importe und
+ * den WebUntis-Datenstand nach Ablauf der eingestellten Frist und Protokolleinträge nach
+ * einem Jahr.
  *
  * Unabhängig davon werden beim Hochladen nur die neuesten Importe behalten
  * (Import_Repository::BEHALTEN).
@@ -25,6 +27,7 @@ final class Aufbewahrung {
 	public function __construct(
 		private Import_Repository $imports,
 		private Protokoll_Repository $protokoll,
+		private ?Webuntis_Stand_Repository $webuntis = null,
 	) {}
 
 	public static function planen(): void {
@@ -56,6 +59,11 @@ final class Aufbewahrung {
 	public function ausfuehren(): void {
 		$importe   = $this->imports->loesche_aelter_als( self::tage() );
 		$eintraege = $this->protokoll->loesche_aelter_als( self::PROTOKOLL_TAGE );
+		// WebUntis-Datenstand (Kürzel und Stunden): dieselbe Frist wie die Importe.
+		$stand = null !== $this->webuntis ? $this->webuntis->loesche_aelter_als( self::tage() ) : 0;
+		if ( $stand > 0 ) {
+			$this->protokoll->log( 'aufbewahrung', sprintf( 'WebUntis-Datenstand: %d Klassen nach Fristablauf gelöscht', $stand ), 0 );
+		}
 		if ( $importe > 0 ) {
 			$this->protokoll->log( 'aufbewahrung', sprintf( '%d Importe nach Fristablauf gelöscht', $importe ), 0 );
 		}

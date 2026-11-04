@@ -177,7 +177,7 @@ $status_name = [ 'publish' => 'veröffentlicht', 'private' => 'privat', 'draft' 
 			<tbody>
 				<tr>
 					<td><code>[<?= esc_html( $shortcode ) ?>]</code></td>
-					<td>Den kompletten Converter mit den Reitern Import, Klassen, Fächer, Konflikte, Schild-Fächer und Ergebnis.</td>
+					<td>Den kompletten Converter mit den Reitern Import, Klassen, Fächer, Konflikte, Schild-Fächer, WebUntis-Abgleich und Ergebnis.</td>
 					<td><span class="usc-badge is-restricted">Admins + Freigegebene</span></td>
 					<td>
 						<?php if ( $frontend_aktiv ) : ?>

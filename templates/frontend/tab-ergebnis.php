@@ -65,6 +65,7 @@ $anzahl   = array_count_values( array_map( static fn( P $e ) => $e->schritt, $er
 			<div class="mh-usc-notice is-error">
 				<b>Export gesperrt:</b> <?= count( $ergebnis->offene_konflikte() ) ?> Fächer haben mehrere Lehrkräfte mit gleich vielen Stunden.
 				<a href="<?= esc_url( $tab_url( 'konflikte' ) ) ?>">Jetzt auswählen</a>
+				– oder unten nur Klassen ohne offene Konflikte exportieren.
 			</div>
 		<?php endif; ?>
 		<?php if ( ! $ergebnis->abgleich ) : ?>
@@ -76,16 +77,72 @@ $anzahl   = array_count_values( array_map( static fn( P $e ) => $e->schritt, $er
 				Diese Zeilen würden beim Import in Schild scheitern. <a href="<?= esc_url( $tab_url( 'schildfaecher' ) ) ?>">Details</a></div>
 		<?php endif; ?>
 
-		<form method="post" action="<?= esc_url( $post_url ) ?>" class="mh-usc-actions" style="margin-top:0">
+		<?php
+		$teil      = [] !== $export_vorauswahl;
+		$vorauswahl = array_flip( array_map( 'mb_strtolower', $export_vorauswahl ) );
+		?>
+		<form method="post" action="<?= esc_url( $post_url ) ?>" id="usc-export" style="margin-top:0">
 			<?php $formular( 'usc_export', 'ergebnis' ); ?>
-			<button type="submit" class="mh-usc-btn mh-usc-btn-primary mh-usc-btn-big" <?= $gesperrt ? 'disabled' : '' ?>>
-				Excel-Datei herunterladen (<?= count( $ergebnis->zeilen ) ?> Zeilen)
-			</button>
-			<span class="mh-usc-small mh-usc-muted">
-				Format wie bisher: Kursbezeichnung, klasse, Jahr, Halbjahr, Jahrgang, Fach, Kursart, Wochenstunden, Wochenstunden Lehrer, lehrer.
-				Die Datei wird beim Herunterladen erzeugt und nicht auf dem Server gespeichert.
-			</span>
+			<div class="mh-usc-radios" style="margin-bottom:10px">
+				<label><input type="radio" name="umfang" value="alle" <?php checked( ! $teil ); ?>> Alle Klassen (<?= count( $export_klassen ) ?>)</label>
+				<label><input type="radio" name="umfang" value="auswahl" <?php checked( $teil ); ?>> Nur ausgewählte Klassen – um sie in Schild gezielt neu einzulesen</label>
+			</div>
+			<div id="usc-export-klassen" class="<?= $teil ? '' : 'mh-usc-hidden' ?>" style="margin-bottom:12px">
+				<div class="mh-usc-toolbar">
+					<input type="search" class="mh-usc-search" style="max-width:240px;min-height:34px;padding:4px 10px;font-size:14px"
+						placeholder="Klasse suchen …" data-filter="#usc-export-liste" aria-label="Klassen durchsuchen">
+					<span class="mh-usc-small mh-usc-muted"><span id="usc-export-zahl">0</span> ausgewählt ·
+						<a href="#" id="usc-export-keine">keine</a></span>
+				</div>
+				<div id="usc-export-liste" style="display:flex;flex-wrap:wrap;gap:4px 14px;max-height:260px;overflow:auto;padding:8px;border:1px solid var(--u-border);border-radius:6px">
+					<?php foreach ( $export_klassen as $kl => $info ) : $kl = (string) $kl; ?>
+						<label data-suche="<?= esc_attr( $kl ) ?>" style="white-space:nowrap" title="<?= esc_attr( $info['zeilen'] . ' Zeilen' . ( $info['offen'] ? ', ' . $info['offen'] . ' Konflikte offen' : '' ) ) ?>">
+							<input type="checkbox" name="klassen[]" value="<?= esc_attr( $kl ) ?>" <?php checked( isset( $vorauswahl[ mb_strtolower( $kl ) ] ) ); ?>>
+							<?= esc_html( $kl ) ?><?php if ( $info['offen'] ) : ?> <span class="mh-usc-badge is-red" title="offene Konflikte">!</span><?php endif; ?>
+						</label>
+					<?php endforeach; ?>
+				</div>
+			</div>
+			<div class="mh-usc-actions" style="margin-top:0">
+				<button type="submit" class="mh-usc-btn mh-usc-btn-primary mh-usc-btn-big" id="usc-export-knopf" <?= $gesperrt && ! $teil ? 'disabled' : '' ?>>
+					Excel-Datei herunterladen (<span id="usc-export-zeilen"><?= count( $ergebnis->zeilen ) ?></span> Zeilen)
+				</button>
+				<span class="mh-usc-small mh-usc-muted">
+					Format wie bisher: Kursbezeichnung, klasse, Jahr, Halbjahr, Jahrgang, Fach, Kursart, Wochenstunden, Wochenstunden Lehrer, lehrer.
+					Die Datei wird beim Herunterladen erzeugt und nicht auf dem Server gespeichert. Bei einer Auswahl sperren nur offene Konflikte
+					in den gewählten Klassen den Export.
+				</span>
+			</div>
 		</form>
+		<script>
+		( function () {
+			var form   = document.getElementById( 'usc-export' );
+			if ( ! form ) { return; }
+			var info   = <?= wp_json_encode( $export_klassen ) ?>;
+			var gesamt = <?= (int) count( $ergebnis->zeilen ) ?>;
+			var alleGesperrt = <?= $gesperrt ? 'true' : 'false' ?>;
+			var liste  = document.getElementById( 'usc-export-klassen' );
+			var knopf  = document.getElementById( 'usc-export-knopf' );
+			function aktualisieren() {
+				var teil  = form.querySelector( 'input[name="umfang"]:checked' ).value === 'auswahl';
+				var boxen = form.querySelectorAll( 'input[name="klassen[]"]:checked' );
+				var zeilen = 0, offen = 0;
+				boxen.forEach( function ( b ) { var i = info[ b.value ] || {}; zeilen += i.zeilen || 0; offen += i.offen || 0; } );
+				liste.classList.toggle( 'mh-usc-hidden', ! teil );
+				document.getElementById( 'usc-export-zahl' ).textContent = boxen.length;
+				document.getElementById( 'usc-export-zeilen' ).textContent = teil ? zeilen : gesamt;
+				knopf.disabled = teil ? ( boxen.length === 0 || offen > 0 ) : alleGesperrt;
+				knopf.title = teil && offen > 0 ? 'In den gewählten Klassen sind Konflikte offen.' : '';
+			}
+			form.addEventListener( 'change', aktualisieren );
+			document.getElementById( 'usc-export-keine' ).addEventListener( 'click', function ( e ) {
+				e.preventDefault();
+				form.querySelectorAll( 'input[name="klassen[]"]' ).forEach( function ( b ) { b.checked = false; } );
+				aktualisieren();
+			} );
+			aktualisieren();
+		} )();
+		</script>
 	</div>
 </section>
 

@@ -21,6 +21,7 @@ $tabellen = [
 	'usc_lehrkraft_entscheidungen',
 	'usc_schildfaecher',
 	'usc_protokoll',
+	'usc_webuntis_stand',
 	// Vorversion
 	'usc_loesch_klassen',
 	'usc_loesch_faecher',

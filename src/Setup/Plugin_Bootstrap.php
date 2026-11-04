@@ -14,11 +14,13 @@ use Mh\UntisSchild\Repository\Protokoll_Repository;
 use Mh\UntisSchild\Service\Aufbewahrung;
 use Mh\UntisSchild\Repository\Schild_Fach_Repository;
 use Mh\UntisSchild\Repository\Status_Repository;
+use Mh\UntisSchild\Repository\Webuntis_Stand_Repository;
 use Mh\UntisSchild\Service\Converter_Service;
 use Mh\UntisSchild\Service\Excel_Service;
 use Mh\UntisSchild\Service\Gpu_Parser;
 use Mh\UntisSchild\Service\Pipeline;
 use Mh\UntisSchild\Service\Regel_Pruefer;
+use Mh\UntisSchild\Service\Webuntis_Abgleich;
 
 /**
  * Class Plugin_Bootstrap
@@ -44,9 +46,10 @@ class Plugin_Bootstrap {
 		$converter = new Converter_Service( $imports, $klassen_regeln, $fach_regeln, $entscheidungen, $schild_faecher, new Pipeline() );
 
 		$protokoll = new Protokoll_Repository( $wpdb );
+		$webuntis  = new Webuntis_Stand_Repository( $wpdb );
 
 		// Täglicher Löschlauf (Speicherbegrenzung).
-		add_action( Aufbewahrung::CRON_HOOK, [ new Aufbewahrung( $imports, $protokoll ), 'ausfuehren' ] );
+		add_action( Aufbewahrung::CRON_HOOK, [ new Aufbewahrung( $imports, $protokoll, $webuntis ), 'ausfuehren' ] );
 
 		( new Converter_Controller(
 			$imports,
@@ -59,6 +62,8 @@ class Plugin_Bootstrap {
 			new Excel_Service(),
 			new Regel_Pruefer(),
 			$protokoll,
+			$webuntis,
+			new Webuntis_Abgleich(),
 		) )->register();
 
 		if ( is_admin() ) {

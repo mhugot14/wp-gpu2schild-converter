@@ -60,6 +60,8 @@ class Admin_Controller {
 			. 'Lehrkraft. Gespeichert werden nur diese Angaben; die hochgeladene Datei selbst wird nicht aufbewahrt. Zugriff haben '
 			. 'ausschließlich Administratorinnen und Administratoren sowie ausdrücklich freigeschaltete Personen. Gespeichert werden höchstens '
 			. 'die letzten ' . Import_Repository::BEHALTEN . ' Importe, jeder Import wird spätestens nach ' . Aufbewahrung::tage() . ' Tagen gelöscht. '
+			. 'Um die Übertragung auf Richtigkeit zu prüfen, kann zusätzlich aus WebUntis je Klasse abgerufen werden, wie viele Stunden '
+			. 'jede Lehrkraft (Kürzel) in einem Fach zuletzt unterrichtet hat; gespeichert werden nur diese Stundensummen, nach derselben Frist. '
 			. 'Ausgelöste Aktionen (Import, Export, Auswahl von Lehrkräften) werden ohne Inhalte protokolliert und nach '
 			. Aufbewahrung::PROTOKOLL_TAGE . ' Tagen gelöscht.</p>'
 		) );

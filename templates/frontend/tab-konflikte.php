@@ -4,6 +4,8 @@
  *
  * @var Mh\UntisSchild\Model\Konflikt[] $konflikte   offene zuerst
  * @var object[]                         $gespeichert gemerkte Auswahlen (id, klasse, fach, lehrer, entschieden_von, entschieden_am)
+ * @var array<string, array>             $wu_hinweise Pipeline::schluessel() => Fach aus dem WebUntis-Abgleich (wu, wu_kandidaten, zuletzt)
+ * @var array                            $wu_stand    [ von, bis, anzahl ] des WebUntis-Datenstands
  * (+ Variablen aus layout.php)
  */
 
@@ -29,6 +31,9 @@ $status = [
 	Schild nimmt je Klasse und Fach nur eine Lehrkraft auf. Unterrichten mehrere, wählt das Plugin die Lehrkraft mit den meisten
 	Wochenstunden. Bei Gleichstand musst du auswählen – solange ein Konflikt offen ist, ist der Export gesperrt. Deine Auswahl wird
 	gespeichert und auch bei künftigen Importen verwendet.
+	<?php if ( $wu_stand['anzahl'] > 0 ) : ?>
+		Hinweise „WebUntis“ stammen aus dem Datenstand vom <?= esc_html( mysql2date( 'd.m.Y', (string) $wu_stand['bis'] ) ) ?> (<a href="<?= esc_url( $tab_url( 'webuntis' ) ) ?>">WebUntis-Abgleich</a>).
+	<?php endif; ?>
 </p>
 
 <?php if ( null === $ergebnis ) : ?>
@@ -72,6 +77,30 @@ $status = [
 												</label>
 											<?php endforeach; ?>
 										</div>
+										<?php
+										// Hinweis aus dem gespeicherten WebUntis-Datenstand - nur Anzeige, gewählt wird von Hand.
+										$h = $wu_hinweise[ $key ] ?? null;
+										if ( null !== $h ) :
+											$summe  = array_sum( $h['wu_kandidaten'] );
+											$waehlbar = null !== $h['wu'] && array_key_exists( $h['wu'], $k->kandidaten );
+											?>
+											<div class="mh-usc-small" style="margin-top:6px;color:var(--u-muted)">
+												<?php if ( null !== $h['wu'] ) : ?>
+													WebUntis: meiste Stunden bei <b style="color:var(--u-navy)"><?= esc_html( $h['wu'] ) ?></b>
+													(<?= esc_html( Pipeline::zahl( (float) $h['wu_kandidaten'][ $h['wu'] ] ) . ' von ' . Pipeline::zahl( (float) $summe ) ) ?> Std.)
+													<?php if ( $waehlbar && $h['wu'] !== (string) $k->lehrer ) : ?>
+														<button type="button" class="mh-usc-btn mh-usc-btn-small" data-wu-wahl="<?= esc_attr( $h['wu'] ) ?>" style="margin-left:4px">übernehmen</button>
+													<?php elseif ( ! $waehlbar ) : ?>
+														– laut GPU002 nicht in diesem Fach
+													<?php endif; ?>
+												<?php else : ?>
+													WebUntis: ebenfalls Gleichstand (<?= esc_html( implode( ', ', array_keys( $h['wu_kandidaten'] ) ) ) ?>)
+												<?php endif; ?>
+												<?php if ( null !== $h['zuletzt'] && $h['zuletzt'] !== $h['wu'] ) : ?>
+													<br><span style="color:var(--u-amber)">⚠ zuletzt <?= esc_html( $h['zuletzt'] ) ?></span>
+												<?php endif; ?>
+											</div>
+										<?php endif; ?>
 									</td>
 									<td data-l="Status"><span class="mh-usc-badge <?= esc_attr( $st[1] ) ?>"><?= esc_html( $st[0] ) ?></span></td>
 								</tr>
@@ -90,6 +119,17 @@ $status = [
 	<script>
 	( function () {
 		var form = document.getElementById( 'usc-konflikte' );
+		// „übernehmen“: die WebUntis-Mehrheit als Auswahl markieren – gespeichert wird erst mit dem Knopf.
+		form.addEventListener( 'click', function ( e ) {
+			var btn = e.target.closest( 'button[data-wu-wahl]' );
+			if ( ! btn ) { return; }
+			var td    = btn.closest( 'td' );
+			var radio = Array.prototype.find.call( td.querySelectorAll( 'input[type="radio"]' ), function ( r ) { return r.value === btn.dataset.wuWahl; } );
+			if ( radio && ! radio.checked ) {
+				radio.checked = true;
+				radio.dispatchEvent( new Event( 'change', { bubbles: true } ) );
+			}
+		} );
 		form.addEventListener( 'change', function ( e ) {
 			if ( e.target.type !== 'radio' ) { return; }
 			e.target.closest( '.mh-usc-wahl' ).querySelectorAll( 'label' ).forEach( function ( l ) {

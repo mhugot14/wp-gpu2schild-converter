@@ -15,6 +15,7 @@ use Mh\UntisSchild\Repository\Import_Repository;
 use Mh\UntisSchild\Repository\Klassen_Regel_Repository;
 use Mh\UntisSchild\Repository\Protokoll_Repository;
 use Mh\UntisSchild\Repository\Schild_Fach_Repository;
+use Mh\UntisSchild\Repository\Webuntis_Stand_Repository;
 use Mh\UntisSchild\Service\Converter_Service;
 use Mh\UntisSchild\Service\Excel_Service;
 use Mh\UntisSchild\Service\Gpu_Parser;
@@ -23,6 +24,7 @@ use Mh\UntisSchild\Service\Pipeline;
 use Mh\UntisSchild\Service\Regel_Pruefer;
 use Mh\UntisSchild\Service\Regel_Text;
 use Mh\UntisSchild\Service\Schild_Export;
+use Mh\UntisSchild\Service\Webuntis_Abgleich;
 use Mh\UntisSchild\Service\Zugriff;
 use Mh\UntisSchild\Setup\Plugin_Bootstrap;
 
@@ -41,6 +43,7 @@ class Converter_Controller {
 		'faecher'       => 'Fächer',
 		'konflikte'     => 'Konflikte',
 		'schildfaecher' => 'Schild-Fächer',
+		'webuntis'      => 'WebUntis-Abgleich',
 		'ergebnis'      => 'Ergebnis',
 	];
 
@@ -60,6 +63,14 @@ class Converter_Controller {
 		'usc_regeln_zusammenfassen' => 'handle_regeln_zusammenfassen',
 	];
 
+	/** AJAX-Aktionen des WebUntis-Abgleichs (gemeinsame Nonce WEBUNTIS_NONCE). */
+	private const WEBUNTIS_AJAX = [
+		'usc_wu_start'  => 'ajax_webuntis_start',
+		'usc_wu_klasse' => 'ajax_webuntis_klasse',
+		'usc_wu_ende'   => 'ajax_webuntis_ende',
+	];
+	public const WEBUNTIS_NONCE = 'usc_webuntis';
+
 	public const OPTION_SCHILD_STAND = 'mh_usc_schildfaecher_stand';
 	private const MAX_UPLOAD         = 5 * MB_IN_BYTES;
 
@@ -74,6 +85,8 @@ class Converter_Controller {
 		private Excel_Service $excel,
 		private Regel_Pruefer $pruefer,
 		private Protokoll_Repository $protokoll,
+		private Webuntis_Stand_Repository $webuntis_stand,
+		private Webuntis_Abgleich $abgleich,
 	) {}
 
 	public function register(): void {
@@ -86,6 +99,16 @@ class Converter_Controller {
 					wp_die( 'Keine Berechtigung für den Untis2Schild Converter.', 'Keine Berechtigung', [ 'response' => 403 ] );
 				}
 				check_admin_referer( $aktion );
+				$this->$methode();
+			} );
+		}
+		// WebUntis-Datenstand aktualisieren: Klasse für Klasse per AJAX, damit der
+		// Fortschritt sichtbar ist und kein einzelner Aufruf minutenlang läuft.
+		foreach ( self::WEBUNTIS_AJAX as $aktion => $methode ) {
+			add_action( 'wp_ajax_' . $aktion, function () use ( $methode ): void {
+				if ( ! Zugriff::darf() || ! check_ajax_referer( self::WEBUNTIS_NONCE, 'nonce', false ) ) {
+					wp_send_json_error( [ 'text' => 'Keine Berechtigung oder Sitzung abgelaufen – bitte die Seite neu laden.' ], 403 );
+				}
 				$this->$methode();
 			} );
 		}
@@ -154,7 +177,9 @@ class Converter_Controller {
 			'import'        => $this->daten_import( $import ),
 			'klassen'       => $this->daten_klassen( $import, $ergebnis ),
 			'faecher'       => $this->daten_faecher( $import, $ergebnis ),
-			'konflikte'     => $this->daten_konflikte( $ergebnis ),
+			'konflikte'     => $this->daten_konflikte( $import, $ergebnis ),
+			'webuntis'      => $this->daten_webuntis( $import, $ergebnis ),
+			'ergebnis'      => $this->daten_ergebnis( $ergebnis ),
 			'schildfaecher' => $this->daten_schildfaecher( $import, $ergebnis ),
 			default         => [],
 		};
@@ -252,14 +277,108 @@ class Converter_Controller {
 		return $out;
 	}
 
-	private function daten_konflikte( ?Pipeline_Ergebnis $ergebnis ): array {
+	/**
+	 * Abgleich mit dem gespeicherten WebUntis-Datenstand - einmal je Aufruf berechnet.
+	 * null, wenn es keinen Import oder keinen Datenstand gibt.
+	 */
+	private function abgleich_ergebnis( ?object $import, ?Pipeline_Ergebnis $ergebnis ): ?array {
+		static $memo = [];
+		if ( null === $import || null === $ergebnis ) {
+			return null;
+		}
+		$key = (int) $import->id;
+		if ( array_key_exists( $key, $memo ) ) {
+			return $memo[ $key ];
+		}
+		$stand = $this->webuntis_stand->alle();
+		if ( [] === $stand ) {
+			return $memo[ $key ] = null;
+		}
+		$stunden = [];
+		foreach ( $stand as $klasse => $d ) {
+			if ( '' === $d['fehler'] ) {
+				$stunden[ $klasse ] = $d['stunden'];
+			}
+		}
+		return $memo[ $key ] = $this->abgleich->vergleiche(
+			$ergebnis,
+			array_column( self::webuntis_klassen(), 'name' ),
+			$stunden,
+			(int) $import->halbjahr,
+			$this->klassen_regeln->all(),
+			$this->fach_regeln->all()
+		);
+	}
+
+	/**
+	 * Aktive WebUntis-Klassen über den webuntisAnalyser - leer, wenn er nicht aktiv ist.
+	 *
+	 * @return array<int, array{wu_id:int, name:string}>
+	 */
+	private static function webuntis_klassen(): array {
+		$k = has_filter( 'wa_webuntis_klassen' ) ? apply_filters( 'wa_webuntis_klassen', null ) : null;
+		return is_array( $k ) ? $k : [];
+	}
+
+	/** 1. Halbjahr: August bis Januar. */
+	private static function aktuelles_halbjahr(): int {
+		$monat = (int) current_time( 'n' );
+		return ( $monat >= 8 || 1 === $monat ) ? 1 : 2;
+	}
+
+	private function daten_webuntis( ?object $import, ?Pipeline_Ergebnis $ergebnis ): array {
+		return [
+			'wu_verfuegbar' => has_filter( 'wa_unterricht_stunden' ) && has_filter( 'wa_webuntis_klassen' ),
+			'wu_stand'      => $this->webuntis_stand->stand(),
+			'wu_fehler'     => array_filter( array_map( static fn( $d ) => $d['fehler'], $this->webuntis_stand->alle() ) ),
+			'wu_abgleich'   => $this->abgleich_ergebnis( $import, $ergebnis ),
+			'wu_halbjahr'   => self::aktuelles_halbjahr(),
+			'wu_nonce'      => wp_create_nonce( self::WEBUNTIS_NONCE ),
+		];
+	}
+
+	/** Für die Klassenauswahl beim Export: Klasse => Anzahl Zeilen, offene Konflikte. */
+	private function daten_ergebnis( ?Pipeline_Ergebnis $ergebnis ): array {
+		$klassen = [];
+		if ( null !== $ergebnis ) {
+			foreach ( $ergebnis->zeilen as $z ) {
+				$klassen[ $z->klasse ]['zeilen'] = ( $klassen[ $z->klasse ]['zeilen'] ?? 0 ) + 1;
+				$klassen[ $z->klasse ]['offen']  = $klassen[ $z->klasse ]['offen'] ?? 0;
+			}
+			foreach ( $ergebnis->offene_konflikte() as $k ) {
+				if ( isset( $klassen[ $k->klasse ] ) ) {
+					$klassen[ $k->klasse ]['offen']++;
+				}
+			}
+			uksort( $klassen, 'strnatcasecmp' );
+		}
+		$vorauswahl = array_values( array_filter( array_map(
+			static fn( $k ) => sanitize_text_field( (string) $k ),
+			(array) wp_unslash( $_GET['usc_klassen'] ?? [] )
+		) ) );
+		return [ 'export_klassen' => $klassen, 'export_vorauswahl' => $vorauswahl ];
+	}
+
+	private function daten_konflikte( ?object $import, ?Pipeline_Ergebnis $ergebnis ): array {
 		$konflikte = null !== $ergebnis ? $ergebnis->konflikte : [];
 		usort( $konflikte, static fn( Konflikt $a, Konflikt $b ) =>
 			[ $a->ist_offen() ? 0 : 1, mb_strtolower( $a->klasse ), mb_strtolower( $a->fach ) ]
 			<=> [ $b->ist_offen() ? 0 : 1, mb_strtolower( $b->klasse ), mb_strtolower( $b->fach ) ] );
+		// Hinweis je Konflikt: Wer hat laut gespeichertem WebUntis-Datenstand die meisten Stunden?
+		$wu_hinweise = [];
+		$abgleich    = $this->abgleich_ergebnis( $import, $ergebnis );
+		foreach ( $abgleich['klassen'] ?? [] as $kl ) {
+			foreach ( $kl['faecher'] as $f ) {
+				if ( [] !== $f['wu_kandidaten'] ) {
+					$wu_hinweise[ Pipeline::schluessel( $kl['klasse'], $f['fach'] ) ] = $f;
+				}
+			}
+		}
 		return [
 			'konflikte'      => $konflikte,
 			'gespeichert'    => $this->entscheidungen->all(),
+			'wu_hinweise'    => $wu_hinweise,
+			'wu_stand'       => $this->webuntis_stand->stand(),
 		];
 	}
 
@@ -636,20 +755,113 @@ class Converter_Controller {
 			$this->zurueck( 'ergebnis', 'fehler', 'Es gibt keinen Import.' );
 		}
 		$ergebnis = $this->converter->ergebnis( $import );
-		if ( $ergebnis->export_gesperrt() ) {
-			$this->zurueck( 'konflikte', 'fehler', 'Export gesperrt: Bitte zuerst die offenen Konflikte entscheiden.' );
+
+		// Teilexport: nur ausgewählte Klassen, um sie in Schild gezielt neu einzulesen.
+		// Gesperrt ist dann nur, wenn in DIESEN Klassen ein Konflikt offen ist.
+		$auswahl = 'auswahl' === self::text( 'umfang' )
+			? array_values( array_unique( array_filter( array_map(
+				static fn( $k ) => sanitize_text_field( (string) $k ),
+				(array) wp_unslash( $_POST['klassen'] ?? [] )
+			) ) ) )
+			: [];
+		if ( 'auswahl' === self::text( 'umfang' ) && [] === $auswahl ) {
+			$this->zurueck( 'ergebnis', 'fehler', 'Bitte mindestens eine Klasse auswählen – oder „alle Klassen“ exportieren.' );
+		}
+		$gewaehlt = array_flip( array_map( 'mb_strtolower', $auswahl ) );
+		$zeilen   = [] === $auswahl
+			? $ergebnis->zeilen
+			: array_values( array_filter( $ergebnis->zeilen, static fn( $z ) => isset( $gewaehlt[ mb_strtolower( $z->klasse ) ] ) ) );
+		$offen    = [] === $auswahl
+			? $ergebnis->offene_konflikte()
+			: array_filter( $ergebnis->offene_konflikte(), static fn( $k ) => isset( $gewaehlt[ mb_strtolower( $k->klasse ) ] ) );
+
+		if ( [] !== $offen ) {
+			$this->zurueck( 'konflikte', 'fehler', [] === $auswahl
+				? 'Export gesperrt: Bitte zuerst die offenen Konflikte entscheiden.'
+				: sprintf( 'Export gesperrt: In den gewählten Klassen sind noch %d Konflikte offen.', count( $offen ) ) );
+		}
+		if ( [] === $zeilen ) {
+			$this->zurueck( 'ergebnis', 'fehler', 'Für die gewählten Klassen gibt es keine Zeilen im Ergebnis.' );
 		}
 		if ( ! Excel_Service::verfuegbar() ) {
 			$this->zurueck( 'ergebnis', 'fehler', 'Die PHP-Erweiterung zip fehlt – es kann keine Excel-Datei erzeugt werden.' );
 		}
-		$this->protokoll->log( 'export', sprintf( 'Import #%d: %d Zeilen, %s HJ %d', (int) $import->id, count( $ergebnis->zeilen ),
+		$this->protokoll->log( 'export', sprintf( 'Import #%d: %d Zeilen%s, %s HJ %d', (int) $import->id, count( $zeilen ),
+			[] === $auswahl ? '' : sprintf( 1 === count( $auswahl ) ? ' aus %d Klasse' : ' aus %d Klassen', count( $auswahl ) ),
 			self::schuljahr_text( (int) $import->schuljahr ), (int) $import->halbjahr ) );
+
+		// Dateiname mit Klasse(n), damit mehrere Teilexporte nicht verwechselt werden.
+		$zusatz = '';
+		if ( [] !== $auswahl ) {
+			$zusatz = 1 === count( $auswahl )
+				? '_' . sanitize_file_name( $auswahl[0] )
+				: '_' . count( $auswahl ) . 'Klassen';
+		}
 		$this->excel->sende_xlsx(
-			sprintf( 'schildimport_%d_HJ%d.xlsx', (int) $import->schuljahr, (int) $import->halbjahr ),
+			sprintf( 'schildimport_%d_HJ%d%s.xlsx', (int) $import->schuljahr, (int) $import->halbjahr, $zusatz ),
 			Schild_Export::KOPFZEILE,
-			Schild_Export::zeilen( $ergebnis->zeilen, (int) $import->schuljahr, (int) $import->halbjahr )
+			Schild_Export::zeilen( $zeilen, (int) $import->schuljahr, (int) $import->halbjahr )
 		);
 		exit;
+	}
+
+	// =========================================================================
+	// WebUntis-Abgleich (AJAX)
+	// =========================================================================
+
+	/**
+	 * Liste der zu ladenden Klassen. Mit "klasse" nur diese eine (Neu laden einer Klasse).
+	 */
+	private function ajax_webuntis_start(): void {
+		if ( ! has_filter( 'wa_unterricht_stunden' ) ) {
+			wp_send_json_error( [ 'text' => 'Der webuntisAnalyser ist nicht aktiv.' ] );
+		}
+		$import   = $this->imports->latest();
+		$halbjahr = null !== $import ? (int) $import->halbjahr : self::aktuelles_halbjahr();
+		$alle     = self::webuntis_klassen();
+		$namen    = $this->abgleich->zu_laden( array_column( $alle, 'name' ), $halbjahr, $this->klassen_regeln->all() );
+		$nur      = self::text( 'klasse' );
+		if ( '' !== $nur ) {
+			$namen = array_values( array_filter( $namen, static fn( $n ) => 0 === strcasecmp( $n, $nur ) ) );
+		}
+		$wu_ids = array_column( $alle, 'wu_id', 'name' );
+		wp_send_json_success( [
+			'klassen' => array_map( static fn( $n ) => [ 'wu_id' => (int) $wu_ids[ $n ], 'name' => $n ], $namen ),
+		] );
+	}
+
+	/** Eine Klasse frisch von WebUntis holen und im Datenstand ersetzen. */
+	private function ajax_webuntis_klasse(): void {
+		$wu_id = absint( $_POST['wu_id'] ?? 0 );
+		$name  = self::text( 'name' );
+		if ( $wu_id <= 0 || '' === $name ) {
+			wp_send_json_error( [ 'text' => 'Klasse fehlt.' ] );
+		}
+		$daten = apply_filters( 'wa_unterricht_stunden', null, $wu_id, true );
+		if ( ! is_array( $daten ) ) {
+			$daten = [ 'fehler' => 'Keine Antwort vom webuntisAnalyser.' ];
+		}
+		$fehler = (string) ( $daten['fehler'] ?? '' );
+		$this->webuntis_stand->speichern( $name, $wu_id, '' === $fehler ? (array) ( $daten['counts'] ?? [] ) : [], $fehler, (int) ( $daten['abgerufen'] ?? time() ) );
+		wp_send_json_success( [ 'fehler' => $fehler, 'faecher' => count( (array) ( $daten['counts'] ?? [] ) ) ] );
+	}
+
+	/** Abschluss eines vollständigen Laufs: aufgelöste Klassen entfernen, protokollieren. */
+	private function ajax_webuntis_ende(): void {
+		$voll    = '1' === self::text( 'voll' );
+		$geladen = absint( $_POST['geladen'] ?? 0 );
+		$fehler  = absint( $_POST['fehler'] ?? 0 );
+		$entfernt = 0;
+		if ( $voll ) {
+			$import   = $this->imports->latest();
+			$halbjahr = null !== $import ? (int) $import->halbjahr : self::aktuelles_halbjahr();
+			$entfernt = $this->webuntis_stand->entferne_ausser(
+				$this->abgleich->zu_laden( array_column( self::webuntis_klassen(), 'name' ), $halbjahr, $this->klassen_regeln->all() )
+			);
+		}
+		$this->protokoll->log( 'webuntis', sprintf( '%s: %d Klassen geladen, %d Fehler%s', $voll ? 'Datenstand aktualisiert' : 'Klasse neu geladen',
+			$geladen, $fehler, $entfernt > 0 ? sprintf( ', %d entfernt', $entfernt ) : '' ) );
+		wp_send_json_success();
 	}
 
 	// =========================================================================

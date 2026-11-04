@@ -13,11 +13,12 @@ use wpdb;
  * räumt deren Reste weg: Alttabellen und die Exportdateien, die die Vorversion ungeschützt
  * nach wp-admin/ geschrieben hat.
  *
- * DB_VERSION: 1 = neue Tabellen + Regelübernahme, 2 = Alttabellen/-dateien entfernt + Protokoll.
+ * DB_VERSION: 1 = neue Tabellen + Regelübernahme, 2 = Alttabellen/-dateien entfernt + Protokoll,
+ * 3 = WebUntis-Datenstand für den Abgleich.
  */
 class Activator {
 
-	public const DB_VERSION          = '2';
+	public const DB_VERSION          = '3';
 	public const OPTION_DB_VERSION   = 'mh_usc_db_version';
 	public const OPTION_MIGRATION    = 'mh_usc_migration';
 	/** Die Regeln der Vorversion als Text, bevor die Alttabellen gelöscht wurden. */
@@ -190,6 +191,19 @@ class Activator {
 			zeit datetime NOT NULL,
 			PRIMARY KEY  (id),
 			KEY zeit (zeit)
+		) $charset;" );
+
+		// WebUntis-Datenstand für den Abgleich: je Untis-Klasse Stunden je Fach und Lehrkraft
+		// (JSON, verdichtet). Enthält Kürzel – Aufbewahrung wie die Importe.
+		dbDelta( "CREATE TABLE {$p}usc_webuntis_stand (
+			id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+			klasse varchar(40) NOT NULL,
+			wu_id bigint(20) unsigned NOT NULL DEFAULT 0,
+			stunden longtext NOT NULL,
+			fehler varchar(255) NOT NULL DEFAULT '',
+			abgerufen datetime NOT NULL,
+			PRIMARY KEY  (id),
+			UNIQUE KEY klasse (klasse)
 		) $charset;" );
 
 		// Besteht schon aus der Altversion; Struktur unverändert.

@@ -100,7 +100,7 @@ $status_name = [ 'publish' => 'veröffentlicht', 'private' => 'privat', 'draft' 
 	<?php endif; ?>
 
 	<div class="usc-head">
-		<span class="usc-version">Version <?= esc_html( MH_USC_VERSION ) ?></span>
+		<a class="usc-version" style="color:#fff;text-decoration:none;" href="<?= esc_url( admin_url( 'admin.php?page=' . \Mh\UntisSchild\Controller\Admin_Controller::CHANGELOG_SLUG ) ) ?>" title="Was ist neu? Zum Changelog">Version <?= esc_html( MH_USC_VERSION ) ?> · Changelog</a>
 		<h1>Untis2Schild Converter</h1>
 		<p>Überträgt die Unterrichtsverteilung aus Untis nach SchILD-NRW: Aus der GPU002 entsteht eine
 			Importdatei, mit der alle Schülerinnen und Schüler einer Klasse ihre Fächer und Fachlehrkräfte

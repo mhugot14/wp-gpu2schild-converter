@@ -50,3 +50,10 @@ Die GPU002 und die Importtabellen enthalten Lehrerkürzel und Unterrichtsverteil
 - JavaScript der Reiter mit jsdom zur Laufzeit testen, nicht nur `node --check`. Globale
   JS-Objekte nie `window.usc` nennen: `<div id="usc">` belegt diesen Namen bereits.
 - Wenn eine Fehlersuche echte Daten zu brauchen scheint: nachfragen.
+
+## Changelog
+
+Backend-Seite „Changelog“ (`Admin_Controller::render_changelog()`, Template
+`templates/admin-changelog.php`), Einträge in `src/Model/Changelog.php`. Nutzerrelevante
+Änderungen in einen obersten Eintrag mit `'version' => null` schreiben, beim Release Version
+und Datum eintragen. Das Template ist in mh_form_workflows und webuntisAnalyser identisch.

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Mh\UntisSchild\Controller;
 
+use Mh\UntisSchild\Model\Changelog;
 use Mh\UntisSchild\Repository\Import_Repository;
 use Mh\UntisSchild\Repository\Protokoll_Repository;
 use Mh\UntisSchild\Repository\Status_Repository;
@@ -25,6 +26,7 @@ class Admin_Controller {
 	public const CAPABILITY = 'manage_options';
 
 	public const FREIGABEN_SLUG = 'mh_usc_freigaben';
+	public const CHANGELOG_SLUG = 'mh_usc_changelog';
 
 	private const ACTION_CREATE_PAGE = 'mh_usc_create_page';
 	private const ACTION_FREIGABEN   = 'mh_usc_freigaben_speichern';
@@ -45,6 +47,20 @@ class Admin_Controller {
 		add_menu_page( 'Untis2Schild Converter', 'Untis2Schild', self::CAPABILITY, self::MENU_SLUG, [ $this, 'render_start' ], 'dashicons-migrate', 30 );
 		add_submenu_page( self::MENU_SLUG, 'Untis2Schild – Übersicht', 'Übersicht', self::CAPABILITY, self::MENU_SLUG, [ $this, 'render_start' ] );
 		add_submenu_page( self::MENU_SLUG, 'Untis2Schild – Freigaben & Datenschutz', 'Freigaben & Datenschutz', self::CAPABILITY, self::FREIGABEN_SLUG, [ $this, 'render_freigaben' ] );
+		add_submenu_page( self::MENU_SLUG, 'Untis2Schild – Changelog', 'Changelog', self::CAPABILITY, self::CHANGELOG_SLUG, [ $this, 'render_changelog' ] );
+	}
+
+	/**
+	 * Backend-Seite „Changelog“: Versionshistorie aus Model\Changelog.
+	 */
+	public function render_changelog(): void {
+		if ( ! current_user_can( self::CAPABILITY ) ) {
+			return;
+		}
+		$cl_titel       = 'Untis2Schild Converter';
+		$cl_installiert = MH_USC_VERSION;
+		$cl_releases    = Changelog::releases();
+		include MH_USC_PLUGIN_DIR . 'templates/admin-changelog.php';
 	}
 
 	/**
